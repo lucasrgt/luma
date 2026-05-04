@@ -1,0 +1,247 @@
+{
+  "name": "sample_rotor.bbmodel",
+  "resolution": {
+    "width": 16,
+    "height": 16
+  },
+  "elements": [
+    {
+      "name": "base",
+      "box_uv": false,
+      "rescale": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        3.2,
+        16
+      ],
+      "color": 0,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "8bdeff4b-705c-d2da-fef8-6476af70ed93"
+    },
+    {
+      "name": "rotor",
+      "box_uv": false,
+      "rescale": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        6.72,
+        3.2,
+        1.6
+      ],
+      "to": [
+        9.28,
+        14.4,
+        14.4
+      ],
+      "color": 0,
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "2f543935-80a8-bbcb-986c-e0803877b21e"
+    }
+  ],
+  "outliner": [
+    {
+      "name": "base",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "uuid": "a1f1b231-8f52-19ba-83f1-a136de33f372",
+      "mirror_uv": false,
+      "children": [
+        "8bdeff4b-705c-d2da-fef8-6476af70ed93"
+      ]
+    },
+    {
+      "name": "rotor",
+      "origin": [
+        8,
+        8,
+        8
+      ],
+      "uuid": "5f7103e6-d20c-a6ef-fd95-7cc49fcad177",
+      "mirror_uv": false,
+      "children": [
+        "2f543935-80a8-bbcb-986c-e0803877b21e"
+      ]
+    }
+  ],
+  "animations": [
+    {
+      "uuid": "210bd793-bc6b-785e-bfdb-0bce5a0d1015",
+      "name": "spin",
+      "loop": "loop",
+      "override": false,
+      "length": 1,
+      "snapping": 24,
+      "anim_time_update": "",
+      "blend_weight": "",
+      "start_delay": "",
+      "loop_delay": "",
+      "animators": {
+        "5f7103e6-d20c-a6ef-fd95-7cc49fcad177": {
+          "name": "rotor",
+          "type": "bone",
+          "keyframes": [
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "0",
+                  "z": "0"
+                }
+              ],
+              "uuid": "4ed7d4f2-0392-7a86-a642-9109f093219c",
+              "time": 0
+            },
+            {
+              "channel": "rotation",
+              "data_points": [
+                {
+                  "x": "0",
+                  "y": "360",
+                  "z": "0"
+                }
+              ],
+              "uuid": "765d1a33-c6b6-92c7-ef7c-c35c40c47535",
+              "time": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

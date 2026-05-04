@@ -1,0 +1,26 @@
+{
+  "format_version": "1.0",
+  "pivots": {
+    "rotor": [8, 8, 8]
+  },
+  "animations": {
+    "spin": {
+      "loop": "loop",
+      "length": 1.0,
+      "bones": {
+        "rotor": {
+          "rotation": {
+            "0": {
+              "value": [0, 0, 0],
+              "interp": "linear"
+            },
+            "1": {
+              "value": [0, 360, 0],
+              "interp": "linear"
+            }
+          }
+        }
+      }
+    }
+  }
+}

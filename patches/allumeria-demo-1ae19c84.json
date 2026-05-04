@@ -1,0 +1,35 @@
+{
+  "expectedModuleMvid": "1ae19c84-25ec-4e3f-8ad9-3328f6404cc9",
+  "runtimeAssemblyName": "Luma.Runtime",
+  "runtimeNamespace": "Luma.Runtime",
+  "runtimeTypeName": "LumaEntrypoints",
+  "hooks": [
+    {
+      "name": "game-on-load-init",
+      "targetType": "Allumeria.Game",
+      "targetMethod": "OnLoad",
+      "targetParameterCount": 0,
+      "runtimeMethod": "OnGameInit",
+      "insert": "Start",
+      "argumentMode": "This"
+    },
+    {
+      "name": "game-update-tick",
+      "targetType": "Allumeria.Game",
+      "targetMethod": "OnUpdateFrame",
+      "targetParameterCount": 1,
+      "runtimeMethod": "OnGameTick",
+      "insert": "Start",
+      "argumentMode": "This"
+    },
+    {
+      "name": "game-render-frame",
+      "targetType": "Allumeria.Game",
+      "targetMethod": "OnRenderFrame",
+      "targetParameterCount": 1,
+      "runtimeMethod": "OnRenderFrame",
+      "insert": "Start",
+      "argumentMode": "This"
+    }
+  ]
+}

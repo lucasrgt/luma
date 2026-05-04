@@ -1,0 +1,16 @@
+{
+  "format": "luma.allumeria.modelchunks.v1",
+  "name": "mega_crusher",
+  "texture": "retronism_megacrusher.png",
+  "chunks": [
+    "mega_crusher.chunk_00.bbmodel.json",
+    "mega_crusher.chunk_01.bbmodel.json",
+    "mega_crusher.chunk_02.bbmodel.json",
+    "mega_crusher.chunk_03.bbmodel.json",
+    "mega_crusher.chunk_04.bbmodel.json",
+    "mega_crusher.chunk_05.bbmodel.json",
+    "mega_crusher.chunk_06.bbmodel.json",
+    "mega_crusher.chunk_07.bbmodel.json",
+    "mega_crusher.chunk_08.bbmodel.json"
+  ]
+}

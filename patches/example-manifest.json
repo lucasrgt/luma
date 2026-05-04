@@ -1,0 +1,17 @@
+{
+  "expectedModuleMvid": null,
+  "runtimeAssemblyName": "Luma.Runtime",
+  "runtimeNamespace": "Luma.Runtime",
+  "runtimeTypeName": "LumaEntrypoints",
+  "hooks": [
+    {
+      "name": "bootstrap-main-start",
+      "targetType": "PocketBlocks.Program",
+      "targetMethod": "Main",
+      "targetParameterCount": 1,
+      "runtimeMethod": "OnGameInit",
+      "insert": "Start",
+      "argumentMode": "None"
+    }
+  ]
+}

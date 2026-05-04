@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Loader</AssemblyName>
+    <AllumeriaGameDir Condition="'$(AllumeriaGameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Allumeria Demo</AllumeriaGameDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Luma.Abstractions\Luma.Abstractions.csproj" />
+    <ProjectReference Include="..\Luma.Runtime\Luma.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\entity\shader.vert" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Allumeria">
+      <HintPath>$(AllumeriaGameDir)\Allumeria.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="OpenTK.Mathematics">
+      <HintPath>$(AllumeriaGameDir)\OpenTK.Mathematics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

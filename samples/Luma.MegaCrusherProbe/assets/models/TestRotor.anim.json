@@ -1,0 +1,61 @@
+{
+  "format_version": "1.0",
+  "pivots": {
+    "rotor": [
+      8,
+      8,
+      8
+    ]
+  },
+  "childMap": {
+    "hub": "rotor",
+    "blade_arm": "rotor"
+  },
+  "animations": {
+    "spin": {
+      "loop": "loop",
+      "length": 1,
+      "bones": {
+        "rotor": {
+          "rotation": {
+            "0": {
+              "value": [
+                0,
+                0,
+                0
+              ]
+            },
+            "0.25": {
+              "value": [
+                0,
+                90,
+                0
+              ]
+            },
+            "0.5": {
+              "value": [
+                0,
+                180,
+                0
+              ]
+            },
+            "0.75": {
+              "value": [
+                0,
+                270,
+                0
+              ]
+            },
+            "1": {
+              "value": [
+                0,
+                360,
+                0
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

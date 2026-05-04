@@ -1,0 +1,17 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+TestResults/
+artifacts/
+dist/
+run/
+references/
+luma.log
+luma-loader.log
+mods/
+*.dll.bak
