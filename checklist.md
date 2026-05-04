@@ -139,6 +139,8 @@ Status: [x] feito
 - [x] Remover recipes temporarias/debug do caminho principal.
 - [x] Documentar instalacao e teste in-game.
 - [x] Manter Mega Crusher como showcase maior.
+- [x] Separar showcase pesado e patcher experimental do caminho principal do
+  modder.
 
 Definition of done:
 

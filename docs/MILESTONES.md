@@ -4,9 +4,11 @@
 
 - Buildable .NET solution
 - Public mod API
-- Runtime loader
-- Mono.Cecil patcher
+- Runtime host
+- External-loader adapter foundation
 - Sample mod
+
+Status: done.
 
 ## M1: Mega Crusher Asset Probe
 
@@ -16,53 +18,76 @@
 - Confirm the `working` clip, pivots, child map, and animated bone count
 - Run through `Luma.DevHost`
 
-Status: done locally. DevHost reports 1216 vertices, 1824 triangles, 153
+Status: done locally. DevHost reported 1216 vertices, 1824 triangles, 153
 groups, 38 pivots, 174 child links, and the `working` clip with 4 animated
 bones.
 
-## M2: Real Allumeria Inspection
+## M2: External Loader Bootstrap
 
-- Run `inspect` against the current Allumeria game DLL
-- Record assembly name, version, and MVID
-- Identify init, tick, render, and content registry candidates
-- Create the first versioned patch manifest
+- Install `Luma.AllumeriaLoader` as `Loader.dll`
+- Confirm `luma-loader.log` is written
+- Register `Luma.Runtime`
+- Load mods from `mods/`
 
-## M3: Bootstrap Patch
+Status: done.
 
-- Inject `LumaEntrypoints.OnGameInit`
-- Launch patched copy
-- Confirm `luma.log` is written
-- Confirm `Luma.MegaCrusherProbe` loads from `mods/`
+## M3: Tick and Render Bridge
 
-## M4: Tick and Render Hooks
-
-- Inject tick hook
-- Inject render hook
-- Pass game or renderer instance when safe
+- Subscribe to Allumeria frame events
+- Dispatch runtime tick/render lifecycle
 - Validate no obvious frame-time overhead
 
-## M5: First In-Game Mega Crusher Draw
+Status: done.
 
-- Bind texture
-- Upload OBJ mesh into OpenGL buffers
-- Draw the static Mega Crusher mesh from a render hook
-- Pick a deliberately obvious placement/scale in front of the camera
+## M4: First In-Game Animated Block
 
-## M6: Animated Mega Crusher Draw
+- Register a custom item/block through Allumeria
+- Create a block entity renderer
+- Load and render a `.bbmodel`
+- Animate a craftable sample block
 
-- Sample the `working` clip
-- Rotate `turbine_l`, `turbine_r`, `shredder_L`, and `shredder_R`
-- Preserve static group rendering
-- Validate it runs in-game without visible hitching
+Status: done.
 
-## M7: Content Hook
+## M5: Blockbench Pipeline
 
-- Find item/block/model registration flow
-- Add Luma-side content registration API
-- Create a sample custom item or block
+- Convert `.obj` plus animation JSON to Allumeria `.bbmodel`
+- Preserve pivots and child relationships
+- Validate UVs, pivots, animation data, and native parser compatibility
+- Emit conversion reports
 
-## M8: Blockbench Pipeline
+Status: done.
 
-- Convert `.bbmodel` to Luma animation data
-- Preserve pivots and child map
-- Add a sample animated block/entity
+## M6: Large Model Chunking
+
+- Export chunk manifests
+- Keep each chunk under Allumeria's 20-bone shader limit
+- Support partial rigs
+- Render all chunks at the same block position
+
+Status: done.
+
+## M7: Spatial Lighting Shader
+
+- Stage a Luma-only shader without modifying Allumeria defaults
+- Sample native world light around model bounds
+- Blend light per vertex
+- Keep colored lights local instead of flooding the whole model
+
+Status: done.
+
+## M8: Clean Modder Path
+
+- Keep `samples/Luma.SampleMod` as the small public-API template
+- Move Mega Crusher to `showcase/Luma.MegaCrusherShowcase`
+- Move patching research to `tools/experimental`
+- Keep the main solution focused on SDK, adapter, runtime, tools, sample, and showcase
+
+Status: done.
+
+## Next Target: Animation Runtime
+
+- Public animation controllers
+- Transitions and blend states
+- Triggerable animation events
+- Keyframe callbacks
+- Public bone manipulation API

@@ -13,7 +13,7 @@ $pipelineExe = Join-Path $repoRoot "tools\Luma.AssetPipeline\bin\$Configuration\
 
 $objPath = Join-Path $fixtureDir "tiny_rotor.obj"
 $animPath = Join-Path $fixtureDir "tiny_rotor.anim.json"
-$texturePath = Join-Path $fixtureDir "tiny_rotor.png"
+$texturePath = Join-Path $outputDir "tiny_rotor.png"
 $singleOutput = Join-Path $outputDir "tiny_rotor.bbmodel.json"
 $chunkOutput = Join-Path $outputDir "tiny_rotor.chunks.json"
 

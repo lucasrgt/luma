@@ -1,8 +1,10 @@
+using Luma.Abstractions.Content;
 using Luma.Runtime;
 
 Console.WriteLine("Luma DevHost starting.");
 Console.WriteLine($"Base directory: {AppContext.BaseDirectory}");
 
+LumaEntrypoints.RegisterService<ILumaContentService>(new DevContentService());
 LumaEntrypoints.OnGameInit(new DevGame());
 
 for (int i = 0; i < 5; i++)
@@ -17,3 +19,11 @@ Console.WriteLine("Luma DevHost finished. Check luma.log next to the executable.
 internal sealed class DevGame;
 
 internal sealed class DevRenderer;
+
+internal sealed class DevContentService : ILumaContentService
+{
+    public void RegisterAnimatedBlock(LumaAnimatedBlockSpec spec)
+    {
+        Console.WriteLine($"[DevHost] Registered animated block: {spec.BlockId} -> {spec.Model.ModelPath}");
+    }
+}

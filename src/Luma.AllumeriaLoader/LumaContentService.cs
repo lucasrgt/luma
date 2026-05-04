@@ -111,7 +111,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
             if (entry.Block is null)
             {
                 entry.Block = new PublicAnimatedModelBlock(entry.Spec, entry.Model);
-                Logger.Info($"Registered sample animated block id={entry.Block.intID}, item={entry.Block.item.itemID}: {entry.Spec.BlockId}");
+                Logger.Info($"Registered Luma animated block id={entry.Block.intID}, item={entry.Block.item.itemID}: {entry.Spec.BlockId}");
             }
         }
 
@@ -150,7 +150,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         CraftingRecipe.recipes.Add(
             new CraftingRecipe(new ItemStack(resultItem, amount), CraftingStation.inventory)
                 .AddReq(new RecipeEntry(RecipeAlias.any_planks, 1)));
-        Logger.Info($"Added sample recipe: 1x any planks -> {amount}x {label}");
+        Logger.Info($"Added wood recipe: 1x any planks -> {amount}x {label}");
     }
 
     private static bool IsWoodRecipe(CraftingRecipe recipe, Item resultItem)

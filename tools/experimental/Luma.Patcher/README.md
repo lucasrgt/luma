@@ -1,4 +1,11 @@
-# Patching Rules
+# Experimental Patcher
+
+This folder is archived Mono.Cecil patching research. It is kept for future
+inspection work, but it is not part of the normal Luma modder path. The current
+Allumeria integration uses the external loader adapter in
+`src/Luma.AllumeriaLoader`.
+
+## Patching Rules
 
 Patch copies, not originals.
 

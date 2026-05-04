@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Luma.Abstractions\Luma.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Luma.Runtime\Luma.Runtime.csproj" />
     <ProjectReference Include="..\..\src\Luma.ModelLib\Luma.ModelLib.csproj" />
   </ItemGroup>

@@ -6,13 +6,13 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$modelDir = Join-Path $repoRoot "samples\Luma.MegaCrusherProbe\assets\models"
+$modelDir = Join-Path $repoRoot "showcase\Luma.MegaCrusherShowcase\assets\models"
 $outputModel = if ($Chunked) {
     Join-Path $modelDir "mega_crusher.chunks.json"
 } else {
     Join-Path $modelDir "mega_crusher.bbmodel.json"
 }
-$gameAssetDir = Join-Path $GameDir "mods\luma\assets\models"
+$gameAssetDir = Join-Path $GameDir "mods\luma.showcase\assets\models"
 
 $pipelineArgs = @(
     "bbmodel"

@@ -1,32 +1,36 @@
 # Luma
 
-Luma is an experimental, loader-agnostic modding stack for Allumeria.
+Luma is an experimental, loader-agnostic modding stack for Allumeria. The repo
+is organized so modders can start from the public SDK and sample without touching
+the Allumeria adapter internals or old patching experiments.
 
 ## Projects
 
 ```text
 src/
-  Luma.Abstractions  Public API consumed by mods.
-  Luma.Runtime       Runtime loaded by the patched game.
-  Luma.Patcher       Mono.Cecil CLI for inspection and IL hook injection.
-  Luma.ModelLib      Future model, animation, and renderer library.
-  Luma.AllumeriaLoader
-                     External-loader bootstrap installed as Loader.dll.
-  Luma.DevHost       Local runtime harness without the game.
+  Luma.Abstractions       Public SDK consumed by mods.
+  Luma.ModelLib           Model/export core and portable animation data.
+  Luma.Runtime            Internal mod discovery and lifecycle host.
+  Luma.AllumeriaLoader    Allumeria external-loader adapter installed as Loader.dll.
+
+tools/
+  Luma.AssetPipeline      OBJ/animation/texture to Allumeria BBModel converter.
+  Luma.DevHost            Local runtime smoke harness without launching the game.
+  experimental/Luma.Patcher
+                          Archived Mono.Cecil patching research.
 
 samples/
-  Luma.SampleMod     Clean animated-block sample using the public API.
-  Luma.MegaCrusherProbe
-                     Loads the MegaCrusher OBJ, texture, and animation.
+  Luma.SampleMod          Clean template mod using only the public SDK.
 
-patches/
-  example-manifest.json
+showcase/
+  Luma.MegaCrusherShowcase
+                          Large visual stress test for chunking, animation, and lighting.
 ```
 
 ## Build
 
 ```powershell
-dotnet build
+dotnet build Luma.slnx
 ```
 
 ## Install the Allumeria Loader
@@ -37,7 +41,7 @@ dotnet build
 
 Restart Allumeria after installing so the game loads the external loader.
 
-To install the clean sample mod as well:
+To install the clean sample mod:
 
 ```powershell
 .\scripts\install-allumeria-loader.ps1 -IncludeSampleMod
@@ -46,9 +50,14 @@ To install the clean sample mod as well:
 The sample registers a craftable `Sample Rotor` block through
 `ILumaContentService`. Its recipe is `1x any planks -> 1x Sample Rotor`.
 
-The old Mega Crusher/Luma Rotor preview recipes are now opt-in debug content.
-Set `LUMA_PREVIEW_CONTENT=1` before launching Allumeria if you want those
-temporary recipes.
+To install the heavier Mega Crusher showcase as well:
+
+```powershell
+.\scripts\install-allumeria-loader.ps1 -IncludeSampleMod -IncludeShowcaseMod
+```
+
+The showcase is intentionally not the template. It exists to validate large
+models, chunk manifests, animation pivots, and spatial lighting.
 
 ## Allumeria Model Export
 
@@ -60,14 +69,12 @@ Allumeria's entity shader currently exposes `boneMatrices[20]`, so Luma treats
 The asset pipeline enforces that limit during export and validation.
 
 Use `--partial-rig` for large mechanical models. It keeps only the top animated
-bones and parents each moving subtree's parts directly under those bones, which
-avoids silent shader failures when source art contains many helper groups.
+bones and parents each moving subtree's parts directly under those bones.
 
-Use `--chunks` when a model really needs more than 20 bones, or when a large
-model needs more local lighting. It writes a `.chunks.json` manifest plus
-multiple `.chunk_XX.bbmodel.json` files. Each chunk stays under Allumeria's
-20-bone shader limit and the runtime renders all chunks at the same block
-position with the same animation.
+Use `--chunks` when a model needs more than 20 bones, or when a large model
+needs more local lighting. It writes a `.chunks.json` manifest plus multiple
+`.chunk_XX.bbmodel.json` files. Each chunk stays under Allumeria's 20-bone
+shader limit and the runtime renders all chunks at the same block position.
 
 Use `--light-chunks N` with `--chunks` to force spatial chunks even when the
 model already fits the bone limit. This keeps native Allumeria rendering while
@@ -77,11 +84,11 @@ Preferred conversion command:
 
 ```powershell
 .\tools\Luma.AssetPipeline\bin\Debug\net10.0\Luma.AssetPipeline.exe model convert `
-  .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.obj `
+  .\showcase\Luma.MegaCrusherShowcase\assets\models\MegaCrusher.obj `
   --target allumeria `
-  --animation .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.anim.json `
-  --texture .\samples\Luma.MegaCrusherProbe\assets\models\retronism_megacrusher.png `
-  --output .\samples\Luma.MegaCrusherProbe\assets\models\mega_crusher.chunks.json `
+  --animation .\showcase\Luma.MegaCrusherShowcase\assets\models\MegaCrusher.anim.json `
+  --texture .\showcase\Luma.MegaCrusherShowcase\assets\models\retronism_megacrusher.png `
+  --output .\showcase\Luma.MegaCrusherShowcase\assets\models\mega_crusher.chunks.json `
   --partial-rig `
   --chunks `
   --light-chunks 9 `
@@ -90,50 +97,13 @@ Preferred conversion command:
   --game-dir "C:\Program Files (x86)\Steam\steamapps\common\Allumeria Demo"
 ```
 
-`model convert` prints an export report with groups, polygons, triangles,
-texture size, animation count, chunks, bones/chunk, and parts/chunk. Add
-`--report` to also write that report as JSON next to the output model, or pass
-`--report path\to\report.json` for an explicit path.
-
-Legacy positional command:
-
-```powershell
-.\tools\Luma.AssetPipeline\bin\Debug\net10.0\Luma.AssetPipeline.exe bbmodel `
-  .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.obj `
-  .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.anim.json `
-  .\samples\Luma.MegaCrusherProbe\assets\models\retronism_megacrusher.png `
-  .\samples\Luma.MegaCrusherProbe\assets\models\mega_crusher.bbmodel.json `
-  --partial-rig
-```
-
-Legacy chunk export:
-
-```powershell
-.\tools\Luma.AssetPipeline\bin\Debug\net10.0\Luma.AssetPipeline.exe bbmodel `
-  .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.obj `
-  .\samples\Luma.MegaCrusherProbe\assets\models\MegaCrusher.anim.json `
-  .\samples\Luma.MegaCrusherProbe\assets\models\retronism_megacrusher.png `
-  .\samples\Luma.MegaCrusherProbe\assets\models\mega_crusher.chunks.json `
-  --chunks --partial-rig --light-chunks 9
-```
-
 Validation checks Luma-side asset safety first, then parses the file with
-Allumeria's native `BBModel` loader. It currently catches UVs outside the
-declared texture resolution, mesh origins that drift away from their vertex
-bounds, suspicious animation pivots, and bone counts above the shader limit:
+Allumeria's native `BBModel` loader:
 
 ```powershell
 .\tools\Luma.AssetPipeline\bin\Debug\net10.0\Luma.AssetPipeline.exe validate-allumeria-bbmodel `
   "C:\Program Files (x86)\Steam\steamapps\common\Allumeria Demo" `
-  .\samples\Luma.MegaCrusherProbe\assets\models\mega_crusher.bbmodel.json
-```
-
-The same validation command accepts a chunk manifest and checks every chunk:
-
-```powershell
-.\tools\Luma.AssetPipeline\bin\Debug\net10.0\Luma.AssetPipeline.exe validate-allumeria-bbmodel `
-  "C:\Program Files (x86)\Steam\steamapps\common\Allumeria Demo" `
-  .\samples\Luma.MegaCrusherProbe\assets\models\mega_crusher.chunks.json
+  .\showcase\Luma.MegaCrusherShowcase\assets\models\mega_crusher.chunks.json
 ```
 
 Small converter fixtures live under `tests/fixtures/asset-pipeline`. Run the
@@ -148,14 +118,12 @@ fixture smoke test with:
 The Allumeria adapter uses a separate Luma entity shader that accepts spatial
 light samples around each rendered model chunk. Native Allumeria shader files are
 left untouched; Luma stages its shader under `mods/luma/shaders/` and uses it
-only for Luma-rendered models. At render time the adapter samples
-native RGB/S world light near the model bounds and the shader blends those
-samples per vertex, so large animated models can react to brighter/darker
-surroundings instead of being painted by one averaged light value.
+only for Luma-rendered models.
 
-Strongly colored block light is still balanced so one lamp does not tint the
-entire model too aggressively. Chunked models continue to help because each
-chunk gets its own set of shader samples.
+At render time the adapter samples native RGB/S world light near the model
+bounds and the shader blends those samples per vertex. Large animated models can
+react to brighter and darker surroundings instead of being painted by one
+averaged light value.
 
 Lighting diagnostics can be enabled before launching the game:
 
@@ -167,47 +135,25 @@ $env:LUMA_LIGHT_TINT_STRENGTH = "0.45"
 
 Set `LUMA_LIGHT_BALANCE=off` to compare against raw Allumeria light values.
 
-For the in-game Mega Crusher smoke test, the bake script can install either
-the compact partial rig or the full rig chunked version:
+For the in-game Mega Crusher smoke test:
 
 ```powershell
-.\scripts\bake-megacrusher-preview.ps1
-.\scripts\bake-megacrusher-preview.ps1 -Chunked
+.\scripts\bake-megacrusher-showcase.ps1 -Chunked
+.\scripts\install-allumeria-loader.ps1 -IncludeShowcaseMod
 ```
 
 The current lighting comparison notes and screenshots are tracked in
 [`docs/LIGHTING_VALIDATION.md`](docs/LIGHTING_VALIDATION.md).
 
-## Run the Mega Crusher Probe
+## DevHost Smoke Test
 
 ```powershell
-.\scripts\run-megacrusher-probe.ps1
+.\scripts\run-devhost-smoke.ps1
 ```
 
-This builds the solution, stages `Luma.MegaCrusherProbe` into the DevHost
-`mods/` directory, starts the runtime harness, and tails `luma.log`.
-
-## Inspect a Game DLL
-
-```powershell
-dotnet run --project src/Luma.Patcher -- inspect C:\Path\To\PocketBlocks.dll
-```
-
-This prints the assembly version, module MVID, and candidate methods whose
-names look useful for bootstrap, tick, render, or content registration hooks.
-
-## Patch a Copy
-
-```powershell
-dotnet run --project src/Luma.Patcher -- patch `
-  C:\Path\To\PocketBlocks.dll `
-  patches\example-manifest.json `
-  C:\Path\To\Patched\PocketBlocks.dll
-```
-
-The example manifest is intentionally a placeholder until we inspect a real
-Allumeria build. The patcher refuses unknown MVIDs once `expectedModuleMvid`
-is set, which is the safety gate we want before distributing patches.
+This builds the solution, stages `Luma.SampleMod` and
+`Luma.MegaCrusherShowcase` into the DevHost `mods/` directory, starts the
+runtime harness, and tails `luma.log`.
 
 ## Runtime Contract
 
@@ -224,8 +170,8 @@ public sealed class ExampleMod : IAllumeriaMod
 }
 ```
 
-At runtime, Luma creates a `mods` directory next to the game executable,
-loads each DLL, discovers `IAllumeriaMod` implementations, and calls:
+At runtime, Luma creates a `mods` directory next to the game executable, loads
+each DLL, discovers `IAllumeriaMod` implementations, and calls:
 
 ```text
 Init
@@ -236,8 +182,7 @@ Shutdown
 
 ## Current Status
 
-This repo is a scaffold plus a working patcher foundation and a first
-external-loader bootstrap. The current north star is rendering the animated
-Mega Crusher model in Allumeria, even if it looks uncanny there. The local
-probe already validates asset ingestion; next we need the real Allumeria
-content and render hooks.
+The public SDK, external-loader adapter, asset pipeline, sample mod, showcase,
+chunked model loading, and Luma-only lighting shader are working. The patcher is
+kept under `tools/experimental` as historical research and is not part of the
+normal modder path.

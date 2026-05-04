@@ -1,7 +1,8 @@
 param(
     [string]$GameDir = "C:\Program Files (x86)\Steam\steamapps\common\Allumeria Demo",
     [string]$Configuration = "Debug",
-    [switch]$IncludeSampleMod
+    [switch]$IncludeSampleMod,
+    [switch]$IncludeShowcaseMod
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +13,8 @@ $project = Join-Path $repoRoot "src\Luma.AllumeriaLoader\Luma.AllumeriaLoader.cs
 $output = Join-Path $repoRoot "src\Luma.AllumeriaLoader\bin\$Configuration\net10.0"
 $sampleProject = Join-Path $repoRoot "samples\Luma.SampleMod\Luma.SampleMod.csproj"
 $sampleOutput = Join-Path $repoRoot "samples\Luma.SampleMod\bin\$Configuration\net10.0"
+$showcaseProject = Join-Path $repoRoot "showcase\Luma.MegaCrusherShowcase\Luma.MegaCrusherShowcase.csproj"
+$showcaseOutput = Join-Path $repoRoot "showcase\Luma.MegaCrusherShowcase\bin\$Configuration\net10.0"
 $mods = Join-Path $resolvedGameDir "mods"
 
 dotnet build $project -c $Configuration -p:AllumeriaGameDir="$resolvedGameDir"
@@ -23,6 +26,13 @@ if ($IncludeSampleMod) {
     dotnet build $sampleProject -c $Configuration
     if ($LASTEXITCODE -ne 0) {
         throw "Sample mod build failed with exit code $LASTEXITCODE."
+    }
+}
+
+if ($IncludeShowcaseMod) {
+    dotnet build $showcaseProject -c $Configuration
+    if ($LASTEXITCODE -ne 0) {
+        throw "Showcase mod build failed with exit code $LASTEXITCODE."
     }
 }
 
@@ -47,6 +57,14 @@ if ($IncludeSampleMod) {
     Copy-Item -Path (Join-Path $sampleOutput "assets\*") -Destination $sampleAssets -Recurse -Force
 }
 
+if ($IncludeShowcaseMod) {
+    Copy-Item -LiteralPath (Join-Path $showcaseOutput "Luma.MegaCrusherShowcase.dll") -Destination $mods -Force
+
+    $showcaseAssets = Join-Path $mods "luma.showcase\assets"
+    New-Item -ItemType Directory -Force -Path $showcaseAssets | Out-Null
+    Copy-Item -Path (Join-Path $showcaseOutput "assets\*") -Destination $showcaseAssets -Recurse -Force
+}
+
 Get-ChildItem -Force $mods | Where-Object {
-    $_.Name -in ($filesToCopy + @("Luma.SampleMod.dll", "luma.sample"))
+    $_.Name -in ($filesToCopy + @("Luma.SampleMod.dll", "luma.sample", "Luma.MegaCrusherShowcase.dll", "luma.showcase"))
 } | Select-Object Name, Length, LastWriteTime

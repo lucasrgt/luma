@@ -1,13 +1,14 @@
 <Solution>
   <Folder Name="/samples/">
-    <Project Path="samples/Luma.MegaCrusherProbe/Luma.MegaCrusherProbe.csproj" />
     <Project Path="samples/Luma.SampleMod/Luma.SampleMod.csproj" />
+  </Folder>
+  <Folder Name="/showcase/">
+    <Project Path="showcase/Luma.MegaCrusherShowcase/Luma.MegaCrusherShowcase.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Luma.Abstractions/Luma.Abstractions.csproj" />
     <Project Path="src/Luma.AllumeriaLoader/Luma.AllumeriaLoader.csproj" />
     <Project Path="src/Luma.ModelLib/Luma.ModelLib.csproj" />
-    <Project Path="src/Luma.Patcher/Luma.Patcher.csproj" />
     <Project Path="src/Luma.Runtime/Luma.Runtime.csproj" />
   </Folder>
   <Folder Name="/tools/">

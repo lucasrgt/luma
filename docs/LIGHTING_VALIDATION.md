@@ -41,10 +41,12 @@ colored lamps.
 $env:LUMA_LIGHT_DEBUG = "1"
 $env:LUMA_LIGHT_DEBUG_FRAMES = "24"
 $env:LUMA_LIGHT_TINT_STRENGTH = "0.45"
-.\scripts\bake-megacrusher-preview.ps1 -Chunked
-.\scripts\install-allumeria-loader.ps1
+.\scripts\bake-megacrusher-showcase.ps1 -Chunked
+.\scripts\install-allumeria-loader.ps1 -IncludeShowcaseMod
 ```
 
-Set `LUMA_PREVIEW_CONTENT=1` before launching Allumeria if you want the old
-Mega Crusher, Luma Rotor, and colored-light debug recipes. The clean sample mod
-does not need preview content.
+Set `LUMA_LIGHT_BALANCE=off` to compare against raw Allumeria light values.
+
+The debug recipes/classes that used to live inside `Luma.AllumeriaLoader` have
+been removed from the main path. The current smoke path is the showcase mod
+using the same public content API available to other mods.

@@ -6,9 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$modelDir = Join-Path $repoRoot "samples\Luma.MegaCrusherProbe\assets\models"
+$modelDir = Join-Path $repoRoot "showcase\Luma.MegaCrusherShowcase\assets\models"
 $pipelineProject = Join-Path $repoRoot "tools\Luma.AssetPipeline"
-$gameAssetDir = Join-Path $GameDir "mods\luma\assets\models"
+$gameAssetDir = Join-Path $GameDir "mods\luma.showcase\assets\models"
 $texturePath = Join-Path $modelDir "retronism_megacrusher.png"
 
 function Invoke-BbModelBake {
