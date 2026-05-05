@@ -1,4 +1,5 @@
 using Luma.Abstractions;
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Content;
 using Luma.Abstractions.Models;
 
@@ -98,18 +99,18 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 }
             },
             AddWoodRecipe = false,
-            Behavior = new LumaBlockBehaviorSpec
+            Behavior = new LumaBehaviorSpec
             {
                 InitialState = "working",
                 States =
                 [
-                    new LumaBlockBehaviorStateSpec
+                    new LumaBehaviorStateSpec
                     {
                         Name = "working",
                         AnimationState = "working",
                         Payload = "crusher-online"
                     },
-                    new LumaBlockBehaviorStateSpec
+                    new LumaBehaviorStateSpec
                     {
                         Name = "idle",
                         AnimationState = "idle",
@@ -118,13 +119,13 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 ],
                 Transitions =
                 [
-                    new LumaBlockBehaviorTransitionSpec
+                    new LumaBehaviorTransitionSpec
                     {
                         Trigger = "pause",
                         From = "working",
                         To = "idle"
                     },
-                    new LumaBlockBehaviorTransitionSpec
+                    new LumaBehaviorTransitionSpec
                     {
                         Trigger = "work",
                         From = "idle",

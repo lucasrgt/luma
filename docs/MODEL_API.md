@@ -9,6 +9,7 @@ before mod `Init` runs.
 
 ```csharp
 using Luma.Abstractions;
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Models;
 
 public sealed class AnimatedBlockMod : IAllumeriaMod
@@ -125,8 +126,9 @@ Core contracts:
   keyframe event without requiring mods to reference native game effect types.
 - `ILumaAnimatedModel.Animation.SetBoneOverride(...)` can apply runtime bone
   overrides by public bone name.
-- `LumaAnimatedBlockSpec.Behavior` declares per-block-entity behavior state,
-  trigger transitions, and optional animation-state bindings.
+- `LumaBehaviorSpec` declares generic behavior state, trigger transitions, and
+  optional animation-state bindings. Blocks consume it through
+  `LumaAnimatedBlockSpec.Behavior`; future entities can use the same contract.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
 - `ILumaAnimatedModel.PauseAnimation()` pauses the current animation.
 - `ILumaAnimatedModel.RestartAnimation()` restarts the current animation.
@@ -147,6 +149,7 @@ model spec, plus optional declarative recipes for Allumeria crafting stations.
 
 ```csharp
 using Luma.Abstractions.Content;
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Models;
 
 ILumaContentService content = context.Services.Get<ILumaContentService>()
@@ -242,17 +245,17 @@ animation?.SetBoneOverride("turbine_l", new LumaBoneOverrideSpec
 Animated blocks can also declare a small per-instance behavior graph:
 
 ```csharp
-Behavior = new LumaBlockBehaviorSpec
+Behavior = new LumaBehaviorSpec
 {
     InitialState = "idle",
     States =
     [
-        new LumaBlockBehaviorStateSpec
+        new LumaBehaviorStateSpec
         {
             Name = "idle",
             AnimationState = "idle"
         },
-        new LumaBlockBehaviorStateSpec
+        new LumaBehaviorStateSpec
         {
             Name = "working",
             AnimationState = "working",
@@ -261,13 +264,13 @@ Behavior = new LumaBlockBehaviorSpec
     ],
     Transitions =
     [
-        new LumaBlockBehaviorTransitionSpec
+        new LumaBehaviorTransitionSpec
         {
             Trigger = "work",
             From = "idle",
             To = "working"
         },
-        new LumaBlockBehaviorTransitionSpec
+        new LumaBehaviorTransitionSpec
         {
             Trigger = "pause",
             From = "working",
@@ -284,7 +287,7 @@ and animation state connected without requiring native game types in the mod API
 ```csharp
 content.TriggerBehaviorAt(x, y, z, "work");
 
-ILumaBlockBehaviorController? behavior = content.GetBehaviorControllerAt(x, y, z);
+ILumaBehaviorController? behavior = content.GetBehaviorControllerAt(x, y, z);
 behavior?.SetState("idle");
 ```
 

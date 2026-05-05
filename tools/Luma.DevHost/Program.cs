@@ -1,3 +1,4 @@
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Content;
 using Luma.Abstractions.Models;
 using Luma.Runtime;
@@ -45,7 +46,7 @@ internal sealed class DevContentService : ILumaContentService
         return false;
     }
 
-    public ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
+    public ILumaBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
     {
         return null;
     }

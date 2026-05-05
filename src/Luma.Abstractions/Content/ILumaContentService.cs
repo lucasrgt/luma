@@ -1,3 +1,4 @@
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Models;
 
 namespace Luma.Abstractions.Content;
@@ -10,18 +11,9 @@ public interface ILumaContentService
 
     bool TriggerAnimationAt(int x, int y, int z, string triggerName);
 
-    ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z);
+    ILumaBehaviorController? GetBehaviorControllerAt(int x, int y, int z);
 
     bool TriggerBehaviorAt(int x, int y, int z, string triggerName);
-}
-
-public interface ILumaBlockBehaviorController
-{
-    string? CurrentState { get; }
-
-    bool SetState(string stateName);
-
-    bool Trigger(string triggerName);
 }
 
 public sealed class LumaAnimatedBlockSpec
@@ -42,7 +34,7 @@ public sealed class LumaAnimatedBlockSpec
 
     public IReadOnlyList<LumaRecipeSpec> Recipes { get; init; } = [];
 
-    public LumaBlockBehaviorSpec? Behavior { get; init; }
+    public LumaBehaviorSpec? Behavior { get; init; }
 }
 
 public sealed class LumaRecipeSpec
@@ -61,58 +53,4 @@ public sealed class LumaRecipeIngredientSpec
     public string? AliasId { get; init; }
 
     public int Amount { get; init; } = 1;
-}
-
-public sealed class LumaBlockBehaviorSpec
-{
-    public string? InitialState { get; init; }
-
-    public IReadOnlyList<LumaBlockBehaviorStateSpec> States { get; init; } = [];
-
-    public IReadOnlyList<LumaBlockBehaviorTransitionSpec> Transitions { get; init; } = [];
-
-    public LumaBlockBehaviorStateSpec? FindState(string stateName)
-    {
-        foreach (LumaBlockBehaviorStateSpec state in States)
-        {
-            if (state.Name.Equals(stateName, StringComparison.Ordinal))
-            {
-                return state;
-            }
-        }
-
-        return null;
-    }
-
-    public LumaBlockBehaviorStateSpec? GetInitialState()
-    {
-        if (!string.IsNullOrWhiteSpace(InitialState))
-        {
-            LumaBlockBehaviorStateSpec? state = FindState(InitialState);
-            if (state is not null)
-            {
-                return state;
-            }
-        }
-
-        return States.Count > 0 ? States[0] : null;
-    }
-}
-
-public sealed class LumaBlockBehaviorStateSpec
-{
-    public required string Name { get; init; }
-
-    public string? AnimationState { get; init; }
-
-    public string? Payload { get; init; }
-}
-
-public sealed class LumaBlockBehaviorTransitionSpec
-{
-    public required string Trigger { get; init; }
-
-    public required string From { get; init; }
-
-    public required string To { get; init; }
 }

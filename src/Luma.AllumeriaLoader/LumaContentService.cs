@@ -6,6 +6,7 @@ using Allumeria.DataManagement;
 using Allumeria.DataManagement.Saving;
 using Allumeria.Items;
 using Allumeria.Items.Crafting;
+using Luma.Abstractions.Behaviors;
 using Luma.Abstractions.Content;
 using Luma.Abstractions.Models;
 using System.Reflection;
@@ -68,7 +69,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         return GetAnimationControllerAt(x, y, z)?.Trigger(triggerName) == true;
     }
 
-    public ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
+    public ILumaBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
     {
         World? world = Allumeria.Game.gameState?.worldManager?.world;
         if (world?.chunkManager.GetBlockEntityAt(x, y, z, out BlockEntity entity) != true ||
@@ -205,7 +206,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
 
     private static void ValidateBehavior(LumaAnimatedBlockSpec spec)
     {
-        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        LumaBehaviorSpec? behavior = spec.Behavior;
         if (behavior is null)
         {
             return;
@@ -217,7 +218,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         }
 
         var states = new HashSet<string>(StringComparer.Ordinal);
-        foreach (LumaBlockBehaviorStateSpec state in behavior.States)
+        foreach (LumaBehaviorStateSpec state in behavior.States)
         {
             if (string.IsNullOrWhiteSpace(state.Name))
             {
@@ -241,7 +242,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
             throw new ArgumentException($"Behavior spec for {spec.BlockId} references missing InitialState '{behavior.InitialState}'.");
         }
 
-        foreach (LumaBlockBehaviorTransitionSpec transition in behavior.Transitions)
+        foreach (LumaBehaviorTransitionSpec transition in behavior.Transitions)
         {
             if (string.IsNullOrWhiteSpace(transition.Trigger))
             {
@@ -485,7 +486,7 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             : null;
     }
 
-    public ILumaBlockBehaviorController? GetBehaviorController()
+    public ILumaBehaviorController? GetBehaviorController()
     {
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
         return spec?.Behavior is null
@@ -545,7 +546,7 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
 
     private void EnsureBehaviorState(LumaAnimatedBlockSpec spec)
     {
-        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        LumaBehaviorSpec? behavior = spec.Behavior;
         if (behavior is null || !string.IsNullOrWhiteSpace(behaviorState))
         {
             return;
@@ -569,7 +570,7 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(stateName);
 
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
-        LumaBlockBehaviorStateSpec? state = spec?.Behavior?.FindState(stateName);
+        LumaBehaviorStateSpec? state = spec?.Behavior?.FindState(stateName);
         if (spec is null || state is null)
         {
             return false;
@@ -585,14 +586,14 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(triggerName);
 
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
-        LumaBlockBehaviorSpec? behavior = spec?.Behavior;
+        LumaBehaviorSpec? behavior = spec?.Behavior;
         if (spec is null || behavior is null)
         {
             return false;
         }
 
         EnsureBehaviorState(spec);
-        foreach (LumaBlockBehaviorTransitionSpec transition in behavior.Transitions)
+        foreach (LumaBehaviorTransitionSpec transition in behavior.Transitions)
         {
             if (!transition.Trigger.Equals(triggerName, StringComparison.Ordinal) ||
                 !MatchesBehaviorTransitionSource(transition.From))
@@ -614,13 +615,13 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
 
     private void ApplyBehaviorStateAnimation(LumaAnimatedBlockSpec spec)
     {
-        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        LumaBehaviorSpec? behavior = spec.Behavior;
         if (behavior is null || string.IsNullOrWhiteSpace(behaviorState))
         {
             return;
         }
 
-        LumaBlockBehaviorStateSpec? state = behavior.FindState(behaviorState);
+        LumaBehaviorStateSpec? state = behavior.FindState(behaviorState);
         if (!string.IsNullOrWhiteSpace(state?.AnimationState) &&
             TryGetModel(out ILumaAnimatedModel behaviorModel))
         {
@@ -628,7 +629,7 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
         }
     }
 
-    private sealed class PublicAnimatedModelBehaviorController(PublicAnimatedModelBlockEntity entity) : ILumaBlockBehaviorController
+    private sealed class PublicAnimatedModelBehaviorController(PublicAnimatedModelBlockEntity entity) : ILumaBehaviorController
     {
         public string? CurrentState
         {
