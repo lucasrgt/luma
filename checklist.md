@@ -185,7 +185,7 @@ Status: [~] em andamento
 
 - [x] 9.1 Adicionar recipes declarativas para blocos Luma.
 - [x] 9.2 Suportar eventos de animacao ligados a efeitos declarativos.
-- [ ] 9.3 Criar estado de maquina por block entity.
+- [x] 9.3 Criar estado de maquina por block entity.
 - [ ] 9.4 Adicionar inventario simples para maquinas.
 - [ ] 9.5 Adicionar energia/progresso declarativo.
 - [ ] 9.6 Expor hooks publicos para interacao/right-click.

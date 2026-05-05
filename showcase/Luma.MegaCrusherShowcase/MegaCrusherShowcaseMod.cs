@@ -98,6 +98,40 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 }
             },
             AddWoodRecipe = false,
+            Machine = new LumaMachineSpec
+            {
+                InitialState = "working",
+                States =
+                [
+                    new LumaMachineStateSpec
+                    {
+                        Name = "working",
+                        AnimationState = "working",
+                        Payload = "crusher-online"
+                    },
+                    new LumaMachineStateSpec
+                    {
+                        Name = "idle",
+                        AnimationState = "idle",
+                        Payload = "crusher-paused"
+                    }
+                ],
+                Transitions =
+                [
+                    new LumaMachineTransitionSpec
+                    {
+                        Trigger = "pause",
+                        From = "working",
+                        To = "idle"
+                    },
+                    new LumaMachineTransitionSpec
+                    {
+                        Trigger = "work",
+                        From = "idle",
+                        To = "working"
+                    }
+                ]
+            },
             Recipes =
             [
                 new LumaRecipeSpec

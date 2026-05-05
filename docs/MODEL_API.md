@@ -125,6 +125,8 @@ Core contracts:
   keyframe event without requiring mods to reference native game effect types.
 - `ILumaAnimatedModel.Animation.SetBoneOverride(...)` can apply runtime bone
   overrides by public bone name.
+- `LumaAnimatedBlockSpec.Machine` declares per-block-entity machine state,
+  trigger transitions, and optional animation-state bindings.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
 - `ILumaAnimatedModel.PauseAnimation()` pauses the current animation.
 - `ILumaAnimatedModel.RestartAnimation()` restarts the current animation.
@@ -235,6 +237,55 @@ animation?.SetBoneOverride("turbine_l", new LumaBoneOverrideSpec
     Bone = "turbine_l",
     RotationDegrees = new LumaVector3(0f, 90f, 0f)
 });
+```
+
+Animated blocks can also declare a small per-instance machine state graph:
+
+```csharp
+Machine = new LumaMachineSpec
+{
+    InitialState = "idle",
+    States =
+    [
+        new LumaMachineStateSpec
+        {
+            Name = "idle",
+            AnimationState = "idle"
+        },
+        new LumaMachineStateSpec
+        {
+            Name = "working",
+            AnimationState = "working",
+            Payload = "processing"
+        }
+    ],
+    Transitions =
+    [
+        new LumaMachineTransitionSpec
+        {
+            Trigger = "work",
+            From = "idle",
+            To = "working"
+        },
+        new LumaMachineTransitionSpec
+        {
+            Trigger = "pause",
+            From = "working",
+            To = "idle"
+        }
+    ]
+}
+```
+
+Each placed block stores its own current machine state. On Allumeria the state is
+persisted with the block entity, and `AnimationState` keeps machine state and
+animation state connected without requiring native game types in the mod API:
+
+```csharp
+content.TriggerMachineAt(x, y, z, "work");
+
+ILumaMachineController? machine = content.GetMachineControllerAt(x, y, z);
+machine?.SetState("idle");
 ```
 
 ## Animation Graph Patterns
