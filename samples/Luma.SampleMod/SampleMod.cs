@@ -48,8 +48,23 @@ public sealed class SampleMod : IAllumeriaMod
                     ]
                 }
             },
-            AddWoodRecipe = true,
-            RecipeOutputCount = 1
+            AddWoodRecipe = false,
+            Recipes =
+            [
+                new LumaRecipeSpec
+                {
+                    Station = "inventory",
+                    OutputCount = 1,
+                    Ingredients =
+                    [
+                        new LumaRecipeIngredientSpec
+                        {
+                            AliasId = "any_planks",
+                            Amount = 1
+                        }
+                    ]
+                }
+            ]
         });
 
         logger.Info("Sample mod queued Sample Rotor. Recipe: 1x any planks -> 1x Sample Rotor.");

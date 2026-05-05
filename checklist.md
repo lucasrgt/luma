@@ -178,3 +178,20 @@ Definition of done:
 Iniciar o milestone de interacao/gameplay: APIs declarativas para receitas mais
 ricas, energia/inventario de maquinas e efeitos acionados por eventos de
 animacao.
+
+## 9. Interacao e gameplay declarativos
+
+Status: [~] em andamento
+
+- [x] 9.1 Adicionar recipes declarativas para blocos Luma.
+- [ ] 9.2 Suportar eventos de animacao ligados a efeitos declarativos.
+- [ ] 9.3 Criar estado de maquina por block entity.
+- [ ] 9.4 Adicionar inventario simples para maquinas.
+- [ ] 9.5 Adicionar energia/progresso declarativo.
+- [ ] 9.6 Expor hooks publicos para interacao/right-click.
+- [ ] 9.7 Criar showcase de maquina usando recipe, estado e eventos.
+
+Definition of done:
+
+- Mods conseguem descrever gameplay basico de maquinas sem depender de tipos
+  nativos do Allumeria.

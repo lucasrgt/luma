@@ -129,7 +129,7 @@ texture instances, and light values stay outside the public mod API.
 
 `Luma.Abstractions.Content` exposes the first content-level API for sample-sized
 mods. It is intentionally narrow: register one animated block backed by a public
-model spec, optionally with the simple wood recipe used by the sample.
+model spec, plus optional declarative recipes for Allumeria crafting stations.
 
 ```csharp
 using Luma.Abstractions.Content;
@@ -161,7 +161,24 @@ content.RegisterAnimatedBlock(new LumaAnimatedBlockSpec
                 }
             ]
         }
-    }
+    },
+    AddWoodRecipe = false,
+    Recipes =
+    [
+        new LumaRecipeSpec
+        {
+            Station = "inventory",
+            OutputCount = 1,
+            Ingredients =
+            [
+                new LumaRecipeIngredientSpec
+                {
+                    AliasId = "any_planks",
+                    Amount = 1
+                }
+            ]
+        }
+    ]
 });
 ```
 
@@ -173,6 +190,17 @@ Allumeria rendering types.
 Each placed animated block gets its own animation controller. The Allumeria
 adapter shares parsed model assets and textures between instances, but keeps
 animator state per block entity.
+
+`LumaRecipeSpec` keeps crafting data declarative:
+
+- `Station` maps to an Allumeria crafting station id, such as `inventory` or
+  `work_bench`.
+- `OutputCount` controls the number of block items produced.
+- Ingredients can use either `ItemId` for a concrete item/block id, or `AliasId`
+  for a native recipe alias such as `any_planks`.
+
+`AddWoodRecipe` and `RecipeOutputCount` remain as compatibility defaults for
+old sample-sized specs. Prefer `Recipes` for new mods.
 
 Mods can address an animated block instance by position through the public
 content service:

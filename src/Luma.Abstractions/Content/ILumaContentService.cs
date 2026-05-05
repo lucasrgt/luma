@@ -26,4 +26,24 @@ public sealed class LumaAnimatedBlockSpec
     public bool AddWoodRecipe { get; init; } = true;
 
     public int RecipeOutputCount { get; init; } = 1;
+
+    public IReadOnlyList<LumaRecipeSpec> Recipes { get; init; } = [];
+}
+
+public sealed class LumaRecipeSpec
+{
+    public string Station { get; init; } = "inventory";
+
+    public int OutputCount { get; init; } = 1;
+
+    public IReadOnlyList<LumaRecipeIngredientSpec> Ingredients { get; init; } = [];
+}
+
+public sealed class LumaRecipeIngredientSpec
+{
+    public string? ItemId { get; init; }
+
+    public string? AliasId { get; init; }
+
+    public int Amount { get; init; } = 1;
 }

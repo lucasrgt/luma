@@ -8,6 +8,7 @@ using Allumeria.Items;
 using Allumeria.Items.Crafting;
 using Luma.Abstractions.Content;
 using Luma.Abstractions.Models;
+using System.Reflection;
 
 namespace Luma.AllumeriaLoader;
 
@@ -32,6 +33,8 @@ internal sealed class AllumeriaContentService : ILumaContentService
         {
             throw new ArgumentOutOfRangeException(nameof(spec), "RecipeOutputCount must be at least 1.");
         }
+
+        ValidateRecipes(spec);
 
         lock (gate)
         {
@@ -128,12 +131,12 @@ internal sealed class AllumeriaContentService : ILumaContentService
 
         foreach (RegisteredAnimatedBlock entry in snapshot)
         {
-            if (entry.Block is null || entry.RecipeAdded || !entry.Spec.AddWoodRecipe)
+            if (entry.Block is null || entry.RecipeAdded)
             {
                 continue;
             }
 
-            AddWoodRecipe(entry.Block.item, entry.Spec.RecipeOutputCount, entry.Spec.DisplayName);
+            InstallRecipes(entry.Block.item, entry.Spec);
             entry.RecipeAdded = true;
         }
 
@@ -150,35 +153,154 @@ internal sealed class AllumeriaContentService : ILumaContentService
             && BlockEntity.entityToByte is not null;
     }
 
-    private static void AddWoodRecipe(Item resultItem, int amount, string label)
+    private static void ValidateRecipes(LumaAnimatedBlockSpec spec)
     {
-        CraftingRecipe.recipes.RemoveAll(recipe => IsWoodRecipe(recipe, resultItem));
-        CraftingRecipe.recipes.Add(
-            new CraftingRecipe(new ItemStack(resultItem, amount), CraftingStation.inventory)
-                .AddReq(new RecipeEntry(RecipeAlias.any_planks, 1)));
-        Logger.Info($"Added wood recipe: 1x any planks -> {amount}x {label}");
-    }
-
-    private static bool IsWoodRecipe(CraftingRecipe recipe, Item resultItem)
-    {
-        try
+        foreach (LumaRecipeSpec recipe in spec.Recipes)
         {
-            if (recipe.result.GetItem() != resultItem ||
-                recipe.requiredStation != CraftingStation.inventory ||
-                recipe.requiredItems.Count != 1)
+            if (recipe.OutputCount < 1)
             {
-                return false;
+                throw new ArgumentOutOfRangeException(nameof(spec), $"Recipe output count for {spec.BlockId} must be at least 1.");
             }
 
-            RecipeEntry entry = recipe.requiredItems[0];
-            return entry.useAlias &&
-                entry.alias == RecipeAlias.any_planks &&
-                entry.amount == 1;
+            if (recipe.Ingredients.Count == 0)
+            {
+                throw new ArgumentException($"Recipe for {spec.BlockId} must declare at least one ingredient.");
+            }
+
+            foreach (LumaRecipeIngredientSpec ingredient in recipe.Ingredients)
+            {
+                bool hasItem = !string.IsNullOrWhiteSpace(ingredient.ItemId);
+                bool hasAlias = !string.IsNullOrWhiteSpace(ingredient.AliasId);
+                if (hasItem == hasAlias)
+                {
+                    throw new ArgumentException($"Recipe ingredient for {spec.BlockId} must set exactly one of ItemId or AliasId.");
+                }
+
+                if (ingredient.Amount < 1)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(spec), $"Recipe ingredient amount for {spec.BlockId} must be at least 1.");
+                }
+            }
         }
-        catch
+    }
+
+    private static void InstallRecipes(Item resultItem, LumaAnimatedBlockSpec spec)
+    {
+        IReadOnlyList<LumaRecipeSpec> recipes = spec.Recipes.Count > 0
+            ? spec.Recipes
+            : spec.AddWoodRecipe
+                ? [new LumaRecipeSpec
+                {
+                    OutputCount = spec.RecipeOutputCount,
+                    Ingredients =
+                    [
+                        new LumaRecipeIngredientSpec
+                        {
+                            AliasId = "any_planks",
+                            Amount = 1
+                        }
+                    ]
+                }]
+                : [];
+
+        if (recipes.Count == 0)
         {
-            return false;
+            return;
         }
+
+        ResolvedLumaRecipe[] resolvedRecipes = [.. recipes.Select(recipeSpec =>
+            new ResolvedLumaRecipe(recipeSpec, ResolveCraftingStation(recipeSpec.Station)))];
+
+        foreach (CraftingStation station in resolvedRecipes.Select(recipe => recipe.Station).Distinct())
+        {
+            CraftingRecipe.recipes.RemoveAll(recipe => recipe.result.GetItem() == resultItem && recipe.requiredStation == station);
+        }
+
+        foreach (ResolvedLumaRecipe resolvedRecipe in resolvedRecipes)
+        {
+            LumaRecipeSpec recipeSpec = resolvedRecipe.Spec;
+            CraftingStation station = resolvedRecipe.Station;
+            var recipe = new CraftingRecipe(new ItemStack(resultItem, recipeSpec.OutputCount), station);
+            foreach (LumaRecipeIngredientSpec ingredient in recipeSpec.Ingredients)
+            {
+                recipe.AddReq(ResolveRecipeEntry(ingredient));
+            }
+
+            Logger.Info($"Added Luma recipe: {FormatRecipe(recipe)}");
+        }
+    }
+
+    private static CraftingStation ResolveCraftingStation(string stationId)
+    {
+        string resolvedStationId = string.IsNullOrWhiteSpace(stationId)
+            ? "inventory"
+            : stationId;
+        foreach (CraftingStation station in CraftingStation.stations)
+        {
+            if (station.strID.Equals(resolvedStationId, StringComparison.Ordinal))
+            {
+                return station;
+            }
+        }
+
+        throw new InvalidOperationException($"Unknown crafting station: {resolvedStationId}");
+    }
+
+    private static RecipeEntry ResolveRecipeEntry(LumaRecipeIngredientSpec ingredient)
+    {
+        if (!string.IsNullOrWhiteSpace(ingredient.AliasId))
+        {
+            return new RecipeEntry(ResolveRecipeAlias(ingredient.AliasId), ingredient.Amount);
+        }
+
+        if (!string.IsNullOrWhiteSpace(ingredient.ItemId))
+        {
+            return new RecipeEntry(ResolveItem(ingredient.ItemId), ingredient.Amount);
+        }
+
+        throw new InvalidOperationException("Recipe ingredient must set ItemId or AliasId.");
+    }
+
+    private static RecipeAlias ResolveRecipeAlias(string aliasId)
+    {
+        foreach (FieldInfo field in typeof(RecipeAlias).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetValue(null) is RecipeAlias alias &&
+                alias.strID.Equals(aliasId, StringComparison.Ordinal))
+            {
+                return alias;
+            }
+        }
+
+        throw new InvalidOperationException($"Unknown recipe alias: {aliasId}");
+    }
+
+    private static Item ResolveItem(string itemId)
+    {
+        if (Block.blocksByString.TryGetValue(itemId, out Block? block))
+        {
+            return block.item;
+        }
+
+        foreach (Item? item in Item.items)
+        {
+            if (item is not null && item.strID.Equals(itemId, StringComparison.Ordinal))
+            {
+                return item;
+            }
+        }
+
+        throw new InvalidOperationException($"Unknown item or block id: {itemId}");
+    }
+
+    private static string FormatRecipe(CraftingRecipe recipe)
+    {
+        string requirements = string.Join(
+            ", ",
+            recipe.requiredItems.Select(entry => entry.useAlias
+                ? $"{entry.amount}x alias:{entry.alias.strID}"
+                : $"{entry.amount}x {entry.item.strID}"));
+        return $"{requirements} -> {recipe.result.amount}x {recipe.result.GetItem().strID} @ {recipe.requiredStation.strID}";
     }
 
     private static void EnsureBlockCapacity(int additional)
@@ -214,6 +336,8 @@ internal sealed class AllumeriaContentService : ILumaContentService
 
         public bool RecipeAdded { get; set; }
     }
+
+    private sealed record ResolvedLumaRecipe(LumaRecipeSpec Spec, CraftingStation Station);
 }
 
 internal sealed class PublicAnimatedModelBlock : AnimatedModelBlock<PublicAnimatedModelBlockEntity>

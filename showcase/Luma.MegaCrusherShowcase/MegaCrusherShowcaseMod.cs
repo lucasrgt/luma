@@ -80,7 +80,28 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                     ]
                 }
             },
-            AddWoodRecipe = true
+            AddWoodRecipe = false,
+            Recipes =
+            [
+                new LumaRecipeSpec
+                {
+                    Station = "work_bench",
+                    OutputCount = 1,
+                    Ingredients =
+                    [
+                        new LumaRecipeIngredientSpec
+                        {
+                            AliasId = "any_planks",
+                            Amount = 8
+                        },
+                        new LumaRecipeIngredientSpec
+                        {
+                            ItemId = "stone",
+                            Amount = 4
+                        }
+                    ]
+                }
+            ]
         });
 
         content.RegisterAnimatedBlock(new LumaAnimatedBlockSpec
@@ -108,7 +129,23 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                     ]
                 }
             },
-            AddWoodRecipe = true
+            AddWoodRecipe = false,
+            Recipes =
+            [
+                new LumaRecipeSpec
+                {
+                    Station = "inventory",
+                    OutputCount = 1,
+                    Ingredients =
+                    [
+                        new LumaRecipeIngredientSpec
+                        {
+                            AliasId = "any_planks",
+                            Amount = 1
+                        }
+                    ]
+                }
+            ]
         });
 
         logger.Info("Mega Crusher showcase queued animated blocks through the public content API.");

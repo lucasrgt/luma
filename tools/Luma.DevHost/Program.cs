@@ -26,6 +26,10 @@ internal sealed class DevContentService : ILumaContentService
     public void RegisterAnimatedBlock(LumaAnimatedBlockSpec spec)
     {
         Console.WriteLine($"[DevHost] Registered animated block: {spec.BlockId} -> {spec.Model.ModelPath}");
+        foreach (LumaRecipeSpec recipe in spec.Recipes)
+        {
+            Console.WriteLine($"[DevHost] Recipe: {FormatRecipe(recipe, spec.BlockId)}");
+        }
     }
 
     public ILumaAnimationController? GetAnimationControllerAt(int x, int y, int z)
@@ -36,5 +40,18 @@ internal sealed class DevContentService : ILumaContentService
     public bool TriggerAnimationAt(int x, int y, int z, string triggerName)
     {
         return false;
+    }
+
+    private static string FormatRecipe(LumaRecipeSpec recipe, string blockId)
+    {
+        string ingredients = string.Join(", ", recipe.Ingredients.Select(ingredient =>
+        {
+            string id = ingredient.AliasId is not null
+                ? $"alias:{ingredient.AliasId}"
+                : ingredient.ItemId ?? "unknown";
+            return $"{ingredient.Amount}x {id}";
+        }));
+
+        return $"{ingredients} -> {recipe.OutputCount}x {blockId} @ {recipe.Station}";
     }
 }
