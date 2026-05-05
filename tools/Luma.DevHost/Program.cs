@@ -31,7 +31,7 @@ internal sealed class DevContentService : ILumaContentService
             Console.WriteLine($"[DevHost] Recipe: {FormatRecipe(recipe, spec.BlockId)}");
         }
 
-        PrintMachine(spec);
+        PrintBehavior(spec);
         PrintAnimationEffects(spec);
     }
 
@@ -45,12 +45,12 @@ internal sealed class DevContentService : ILumaContentService
         return false;
     }
 
-    public ILumaMachineController? GetMachineControllerAt(int x, int y, int z)
+    public ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
     {
         return null;
     }
 
-    public bool TriggerMachineAt(int x, int y, int z, string triggerName)
+    public bool TriggerBehaviorAt(int x, int y, int z, string triggerName)
     {
         return false;
     }
@@ -82,17 +82,17 @@ internal sealed class DevContentService : ILumaContentService
         }
     }
 
-    private static void PrintMachine(LumaAnimatedBlockSpec spec)
+    private static void PrintBehavior(LumaAnimatedBlockSpec spec)
     {
-        if (spec.Machine is null)
+        if (spec.Behavior is null)
         {
             return;
         }
 
-        string states = string.Join(", ", spec.Machine.States.Select(state =>
+        string states = string.Join(", ", spec.Behavior.States.Select(state =>
             string.IsNullOrWhiteSpace(state.AnimationState)
                 ? state.Name
                 : $"{state.Name}->{state.AnimationState}"));
-        Console.WriteLine($"[DevHost] Machine: initial={spec.Machine.GetInitialState()?.Name}, states={states}");
+        Console.WriteLine($"[DevHost] Behavior: initial={spec.Behavior.GetInitialState()?.Name}, states={states}");
     }
 }

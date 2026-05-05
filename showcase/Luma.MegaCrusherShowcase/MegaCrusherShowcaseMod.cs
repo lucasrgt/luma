@@ -98,18 +98,18 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 }
             },
             AddWoodRecipe = false,
-            Machine = new LumaMachineSpec
+            Behavior = new LumaBlockBehaviorSpec
             {
                 InitialState = "working",
                 States =
                 [
-                    new LumaMachineStateSpec
+                    new LumaBlockBehaviorStateSpec
                     {
                         Name = "working",
                         AnimationState = "working",
                         Payload = "crusher-online"
                     },
-                    new LumaMachineStateSpec
+                    new LumaBlockBehaviorStateSpec
                     {
                         Name = "idle",
                         AnimationState = "idle",
@@ -118,13 +118,13 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 ],
                 Transitions =
                 [
-                    new LumaMachineTransitionSpec
+                    new LumaBlockBehaviorTransitionSpec
                     {
                         Trigger = "pause",
                         From = "working",
                         To = "idle"
                     },
-                    new LumaMachineTransitionSpec
+                    new LumaBlockBehaviorTransitionSpec
                     {
                         Trigger = "work",
                         From = "idle",

@@ -10,12 +10,12 @@ public interface ILumaContentService
 
     bool TriggerAnimationAt(int x, int y, int z, string triggerName);
 
-    ILumaMachineController? GetMachineControllerAt(int x, int y, int z);
+    ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z);
 
-    bool TriggerMachineAt(int x, int y, int z, string triggerName);
+    bool TriggerBehaviorAt(int x, int y, int z, string triggerName);
 }
 
-public interface ILumaMachineController
+public interface ILumaBlockBehaviorController
 {
     string? CurrentState { get; }
 
@@ -42,7 +42,7 @@ public sealed class LumaAnimatedBlockSpec
 
     public IReadOnlyList<LumaRecipeSpec> Recipes { get; init; } = [];
 
-    public LumaMachineSpec? Machine { get; init; }
+    public LumaBlockBehaviorSpec? Behavior { get; init; }
 }
 
 public sealed class LumaRecipeSpec
@@ -63,17 +63,17 @@ public sealed class LumaRecipeIngredientSpec
     public int Amount { get; init; } = 1;
 }
 
-public sealed class LumaMachineSpec
+public sealed class LumaBlockBehaviorSpec
 {
     public string? InitialState { get; init; }
 
-    public IReadOnlyList<LumaMachineStateSpec> States { get; init; } = [];
+    public IReadOnlyList<LumaBlockBehaviorStateSpec> States { get; init; } = [];
 
-    public IReadOnlyList<LumaMachineTransitionSpec> Transitions { get; init; } = [];
+    public IReadOnlyList<LumaBlockBehaviorTransitionSpec> Transitions { get; init; } = [];
 
-    public LumaMachineStateSpec? FindState(string stateName)
+    public LumaBlockBehaviorStateSpec? FindState(string stateName)
     {
-        foreach (LumaMachineStateSpec state in States)
+        foreach (LumaBlockBehaviorStateSpec state in States)
         {
             if (state.Name.Equals(stateName, StringComparison.Ordinal))
             {
@@ -84,11 +84,11 @@ public sealed class LumaMachineSpec
         return null;
     }
 
-    public LumaMachineStateSpec? GetInitialState()
+    public LumaBlockBehaviorStateSpec? GetInitialState()
     {
         if (!string.IsNullOrWhiteSpace(InitialState))
         {
-            LumaMachineStateSpec? state = FindState(InitialState);
+            LumaBlockBehaviorStateSpec? state = FindState(InitialState);
             if (state is not null)
             {
                 return state;
@@ -99,7 +99,7 @@ public sealed class LumaMachineSpec
     }
 }
 
-public sealed class LumaMachineStateSpec
+public sealed class LumaBlockBehaviorStateSpec
 {
     public required string Name { get; init; }
 
@@ -108,7 +108,7 @@ public sealed class LumaMachineStateSpec
     public string? Payload { get; init; }
 }
 
-public sealed class LumaMachineTransitionSpec
+public sealed class LumaBlockBehaviorTransitionSpec
 {
     public required string Trigger { get; init; }
 

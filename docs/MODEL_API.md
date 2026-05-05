@@ -11,7 +11,7 @@ before mod `Init` runs.
 using Luma.Abstractions;
 using Luma.Abstractions.Models;
 
-public sealed class MachineMod : IAllumeriaMod
+public sealed class AnimatedBlockMod : IAllumeriaMod
 {
     private ILumaAnimatedModel? model;
 
@@ -23,7 +23,7 @@ public sealed class MachineMod : IAllumeriaMod
         model = models.LoadAnimated(new LumaAnimatedModelSpec
         {
             Name = "Mega Crusher",
-            AssetRoot = Path.Combine(context.ModsDirectory, "machine_mod", "assets", "models"),
+            AssetRoot = Path.Combine(context.ModsDirectory, "animated_block_mod", "assets", "models"),
             ModelPath = "mega_crusher.bbmodel.json",
             TexturePath = "retronism_megacrusher.png",
             ChunkManifestPath = "mega_crusher.chunks.json",
@@ -125,7 +125,7 @@ Core contracts:
   keyframe event without requiring mods to reference native game effect types.
 - `ILumaAnimatedModel.Animation.SetBoneOverride(...)` can apply runtime bone
   overrides by public bone name.
-- `LumaAnimatedBlockSpec.Machine` declares per-block-entity machine state,
+- `LumaAnimatedBlockSpec.Behavior` declares per-block-entity behavior state,
   trigger transitions, and optional animation-state bindings.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
 - `ILumaAnimatedModel.PauseAnimation()` pauses the current animation.
@@ -239,20 +239,20 @@ animation?.SetBoneOverride("turbine_l", new LumaBoneOverrideSpec
 });
 ```
 
-Animated blocks can also declare a small per-instance machine state graph:
+Animated blocks can also declare a small per-instance behavior graph:
 
 ```csharp
-Machine = new LumaMachineSpec
+Behavior = new LumaBlockBehaviorSpec
 {
     InitialState = "idle",
     States =
     [
-        new LumaMachineStateSpec
+        new LumaBlockBehaviorStateSpec
         {
             Name = "idle",
             AnimationState = "idle"
         },
-        new LumaMachineStateSpec
+        new LumaBlockBehaviorStateSpec
         {
             Name = "working",
             AnimationState = "working",
@@ -261,13 +261,13 @@ Machine = new LumaMachineSpec
     ],
     Transitions =
     [
-        new LumaMachineTransitionSpec
+        new LumaBlockBehaviorTransitionSpec
         {
             Trigger = "work",
             From = "idle",
             To = "working"
         },
-        new LumaMachineTransitionSpec
+        new LumaBlockBehaviorTransitionSpec
         {
             Trigger = "pause",
             From = "working",
@@ -277,20 +277,20 @@ Machine = new LumaMachineSpec
 }
 ```
 
-Each placed block stores its own current machine state. On Allumeria the state is
-persisted with the block entity, and `AnimationState` keeps machine state and
-animation state connected without requiring native game types in the mod API:
+Each placed block stores its own current behavior state. On Allumeria the state
+is persisted with the block entity, and `AnimationState` keeps behavior state
+and animation state connected without requiring native game types in the mod API:
 
 ```csharp
-content.TriggerMachineAt(x, y, z, "work");
+content.TriggerBehaviorAt(x, y, z, "work");
 
-ILumaMachineController? machine = content.GetMachineControllerAt(x, y, z);
-machine?.SetState("idle");
+ILumaBlockBehaviorController? behavior = content.GetBehaviorControllerAt(x, y, z);
+behavior?.SetState("idle");
 ```
 
 ## Animation Graph Patterns
 
-Machine pattern:
+Processing block pattern:
 
 ```text
 idle --work--> startup --complete--> working --pause--> idle

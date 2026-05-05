@@ -35,7 +35,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         }
 
         ValidateRecipes(spec);
-        ValidateMachine(spec);
+        ValidateBehavior(spec);
 
         lock (gate)
         {
@@ -68,7 +68,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         return GetAnimationControllerAt(x, y, z)?.Trigger(triggerName) == true;
     }
 
-    public ILumaMachineController? GetMachineControllerAt(int x, int y, int z)
+    public ILumaBlockBehaviorController? GetBehaviorControllerAt(int x, int y, int z)
     {
         World? world = Allumeria.Game.gameState?.worldManager?.world;
         if (world?.chunkManager.GetBlockEntityAt(x, y, z, out BlockEntity entity) != true ||
@@ -77,13 +77,13 @@ internal sealed class AllumeriaContentService : ILumaContentService
             return null;
         }
 
-        return animatedEntity.GetMachineController();
+        return animatedEntity.GetBehaviorController();
     }
 
-    public bool TriggerMachineAt(int x, int y, int z, string triggerName)
+    public bool TriggerBehaviorAt(int x, int y, int z, string triggerName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(triggerName);
-        return GetMachineControllerAt(x, y, z)?.Trigger(triggerName) == true;
+        return GetBehaviorControllerAt(x, y, z)?.Trigger(triggerName) == true;
     }
 
     public async Task InstallAsync()
@@ -203,64 +203,64 @@ internal sealed class AllumeriaContentService : ILumaContentService
         }
     }
 
-    private static void ValidateMachine(LumaAnimatedBlockSpec spec)
+    private static void ValidateBehavior(LumaAnimatedBlockSpec spec)
     {
-        LumaMachineSpec? machine = spec.Machine;
-        if (machine is null)
+        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        if (behavior is null)
         {
             return;
         }
 
-        if (machine.States.Count == 0)
+        if (behavior.States.Count == 0)
         {
-            throw new ArgumentException($"Machine spec for {spec.BlockId} must declare at least one state.");
+            throw new ArgumentException($"Behavior spec for {spec.BlockId} must declare at least one state.");
         }
 
         var states = new HashSet<string>(StringComparer.Ordinal);
-        foreach (LumaMachineStateSpec state in machine.States)
+        foreach (LumaBlockBehaviorStateSpec state in behavior.States)
         {
             if (string.IsNullOrWhiteSpace(state.Name))
             {
-                throw new ArgumentException($"Machine spec for {spec.BlockId} contains a state with no name.");
+                throw new ArgumentException($"Behavior spec for {spec.BlockId} contains a state with no name.");
             }
 
             if (!states.Add(state.Name))
             {
-                throw new ArgumentException($"Machine spec for {spec.BlockId} contains duplicate state '{state.Name}'.");
+                throw new ArgumentException($"Behavior spec for {spec.BlockId} contains duplicate state '{state.Name}'.");
             }
 
             if (!string.IsNullOrWhiteSpace(state.AnimationState) &&
                 spec.Model.AnimationGraph?.FindState(state.AnimationState) is null)
             {
-                throw new ArgumentException($"Machine state '{state.Name}' for {spec.BlockId} references missing animation state '{state.AnimationState}'.");
+                throw new ArgumentException($"Behavior state '{state.Name}' for {spec.BlockId} references missing animation state '{state.AnimationState}'.");
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(machine.InitialState) && !states.Contains(machine.InitialState))
+        if (!string.IsNullOrWhiteSpace(behavior.InitialState) && !states.Contains(behavior.InitialState))
         {
-            throw new ArgumentException($"Machine spec for {spec.BlockId} references missing InitialState '{machine.InitialState}'.");
+            throw new ArgumentException($"Behavior spec for {spec.BlockId} references missing InitialState '{behavior.InitialState}'.");
         }
 
-        foreach (LumaMachineTransitionSpec transition in machine.Transitions)
+        foreach (LumaBlockBehaviorTransitionSpec transition in behavior.Transitions)
         {
             if (string.IsNullOrWhiteSpace(transition.Trigger))
             {
-                throw new ArgumentException($"Machine spec for {spec.BlockId} contains a transition with no trigger.");
+                throw new ArgumentException($"Behavior spec for {spec.BlockId} contains a transition with no trigger.");
             }
 
             if (string.IsNullOrWhiteSpace(transition.From))
             {
-                throw new ArgumentException($"Machine transition '{transition.Trigger}' for {spec.BlockId} has no From state.");
+                throw new ArgumentException($"Behavior transition '{transition.Trigger}' for {spec.BlockId} has no From state.");
             }
 
             if (!transition.From.Equals("*", StringComparison.Ordinal) && !states.Contains(transition.From))
             {
-                throw new ArgumentException($"Machine transition '{transition.Trigger}' for {spec.BlockId} references missing From state '{transition.From}'.");
+                throw new ArgumentException($"Behavior transition '{transition.Trigger}' for {spec.BlockId} references missing From state '{transition.From}'.");
             }
 
             if (string.IsNullOrWhiteSpace(transition.To) || !states.Contains(transition.To))
             {
-                throw new ArgumentException($"Machine transition '{transition.Trigger}' for {spec.BlockId} references missing To state '{transition.To}'.");
+                throw new ArgumentException($"Behavior transition '{transition.Trigger}' for {spec.BlockId} references missing To state '{transition.To}'.");
             }
         }
     }
@@ -437,12 +437,13 @@ internal sealed class PublicAnimatedModelBlock : AnimatedModelBlock<PublicAnimat
 internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
 {
     private const string AnimationStateTag = "lumaAnimationState";
-    private const string MachineStateTag = "lumaMachineState";
+    private const string BehaviorStateTag = "lumaBehaviorState";
+    private const string LegacyMachineStateTag = "lumaMachineState";
 
     private AllumeriaAnimatedModel? model;
     private string? savedAnimationState;
-    private string? machineState;
-    private string? savedMachineState;
+    private string? behaviorState;
+    private string? savedBehaviorState;
 
     protected override ILumaAnimatedModel Model => throw new NotSupportedException();
 
@@ -461,11 +462,11 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             return false;
         }
 
-        EnsureMachineState(block.Spec);
+        EnsureBehaviorState(block.Spec);
         this.model = AllumeriaModelRegistry.RegisterAnimatedInstance(block.ModelSpec);
-        if (block.Spec.Machine is not null)
+        if (block.Spec.Behavior is not null)
         {
-            ApplyMachineStateAnimation(block.Spec);
+            ApplyBehaviorStateAnimation(block.Spec);
         }
         else if (!string.IsNullOrWhiteSpace(savedAnimationState))
         {
@@ -484,12 +485,12 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             : null;
     }
 
-    public ILumaMachineController? GetMachineController()
+    public ILumaBlockBehaviorController? GetBehaviorController()
     {
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
-        return spec?.Machine is null
+        return spec?.Behavior is null
             ? null
-            : new PublicAnimatedModelMachineController(this);
+            : new PublicAnimatedModelBehaviorController(this);
     }
 
     public override void WriteBytes(ListTag tag)
@@ -501,10 +502,10 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             tag.AddTag(new StringTag(AnimationStateTag, currentState));
         }
 
-        string? currentMachineState = machineState ?? savedMachineState;
-        if (!string.IsNullOrWhiteSpace(currentMachineState))
+        string? currentBehaviorState = behaviorState ?? savedBehaviorState;
+        if (!string.IsNullOrWhiteSpace(currentBehaviorState))
         {
-            tag.AddTag(new StringTag(MachineStateTag, currentMachineState));
+            tag.AddTag(new StringTag(BehaviorStateTag, currentBehaviorState));
         }
     }
 
@@ -516,9 +517,10 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             savedAnimationState = stateTag.GetValue() as string;
         }
 
-        if (tag.FindTag(MachineStateTag, out DataTag machineStateTag))
+        if (tag.FindTag(BehaviorStateTag, out DataTag behaviorStateTag) ||
+            tag.FindTag(LegacyMachineStateTag, out behaviorStateTag))
         {
-            savedMachineState = machineStateTag.GetValue() as string;
+            savedBehaviorState = behaviorStateTag.GetValue() as string;
         }
     }
 
@@ -541,92 +543,92 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
             : null;
     }
 
-    private void EnsureMachineState(LumaAnimatedBlockSpec spec)
+    private void EnsureBehaviorState(LumaAnimatedBlockSpec spec)
     {
-        LumaMachineSpec? machine = spec.Machine;
-        if (machine is null || !string.IsNullOrWhiteSpace(machineState))
+        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        if (behavior is null || !string.IsNullOrWhiteSpace(behaviorState))
         {
             return;
         }
 
-        string? candidate = savedMachineState;
-        if (!string.IsNullOrWhiteSpace(candidate) && machine.FindState(candidate) is not null)
+        string? candidate = savedBehaviorState;
+        if (!string.IsNullOrWhiteSpace(candidate) && behavior.FindState(candidate) is not null)
         {
-            machineState = candidate;
+            behaviorState = candidate;
         }
         else
         {
-            machineState = machine.GetInitialState()?.Name;
+            behaviorState = behavior.GetInitialState()?.Name;
         }
 
-        savedMachineState = null;
+        savedBehaviorState = null;
     }
 
-    private bool SetMachineState(string stateName)
+    private bool SetBehaviorState(string stateName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stateName);
 
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
-        LumaMachineStateSpec? state = spec?.Machine?.FindState(stateName);
+        LumaBlockBehaviorStateSpec? state = spec?.Behavior?.FindState(stateName);
         if (spec is null || state is null)
         {
             return false;
         }
 
-        machineState = state.Name;
-        ApplyMachineStateAnimation(spec);
+        behaviorState = state.Name;
+        ApplyBehaviorStateAnimation(spec);
         return true;
     }
 
-    private bool TriggerMachine(string triggerName)
+    private bool TriggerBehavior(string triggerName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(triggerName);
 
         LumaAnimatedBlockSpec? spec = GetBlockSpec();
-        LumaMachineSpec? machine = spec?.Machine;
-        if (spec is null || machine is null)
+        LumaBlockBehaviorSpec? behavior = spec?.Behavior;
+        if (spec is null || behavior is null)
         {
             return false;
         }
 
-        EnsureMachineState(spec);
-        foreach (LumaMachineTransitionSpec transition in machine.Transitions)
+        EnsureBehaviorState(spec);
+        foreach (LumaBlockBehaviorTransitionSpec transition in behavior.Transitions)
         {
             if (!transition.Trigger.Equals(triggerName, StringComparison.Ordinal) ||
-                !MatchesMachineTransitionSource(transition.From))
+                !MatchesBehaviorTransitionSource(transition.From))
             {
                 continue;
             }
 
-            return SetMachineState(transition.To);
+            return SetBehaviorState(transition.To);
         }
 
         return false;
     }
 
-    private bool MatchesMachineTransitionSource(string from)
+    private bool MatchesBehaviorTransitionSource(string from)
     {
         return from.Equals("*", StringComparison.Ordinal) ||
-            from.Equals(machineState, StringComparison.Ordinal);
+            from.Equals(behaviorState, StringComparison.Ordinal);
     }
 
-    private void ApplyMachineStateAnimation(LumaAnimatedBlockSpec spec)
+    private void ApplyBehaviorStateAnimation(LumaAnimatedBlockSpec spec)
     {
-        LumaMachineSpec? machine = spec.Machine;
-        if (machine is null || string.IsNullOrWhiteSpace(machineState))
+        LumaBlockBehaviorSpec? behavior = spec.Behavior;
+        if (behavior is null || string.IsNullOrWhiteSpace(behaviorState))
         {
             return;
         }
 
-        LumaMachineStateSpec? state = machine.FindState(machineState);
+        LumaBlockBehaviorStateSpec? state = behavior.FindState(behaviorState);
         if (!string.IsNullOrWhiteSpace(state?.AnimationState) &&
-            TryGetModel(out ILumaAnimatedModel machineModel))
+            TryGetModel(out ILumaAnimatedModel behaviorModel))
         {
-            _ = machineModel.Animation.SetState(state.AnimationState);
+            _ = behaviorModel.Animation.SetState(state.AnimationState);
         }
     }
 
-    private sealed class PublicAnimatedModelMachineController(PublicAnimatedModelBlockEntity entity) : ILumaMachineController
+    private sealed class PublicAnimatedModelBehaviorController(PublicAnimatedModelBlockEntity entity) : ILumaBlockBehaviorController
     {
         public string? CurrentState
         {
@@ -635,21 +637,21 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
                 LumaAnimatedBlockSpec? spec = entity.GetBlockSpec();
                 if (spec is not null)
                 {
-                    entity.EnsureMachineState(spec);
+                    entity.EnsureBehaviorState(spec);
                 }
 
-                return entity.machineState;
+                return entity.behaviorState;
             }
         }
 
         public bool SetState(string stateName)
         {
-            return entity.SetMachineState(stateName);
+            return entity.SetBehaviorState(stateName);
         }
 
         public bool Trigger(string triggerName)
         {
-            return entity.TriggerMachine(triggerName);
+            return entity.TriggerBehavior(triggerName);
         }
     }
 }
