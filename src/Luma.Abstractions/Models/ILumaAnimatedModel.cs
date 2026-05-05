@@ -34,4 +34,12 @@ public interface ILumaAnimationController
     void Resume();
 
     void Restart(float? stepSeconds = null);
+
+    IReadOnlyList<LumaAnimationEvent> DrainEvents();
+
+    bool SetBoneOverride(string boneName, LumaBoneOverrideSpec boneOverride);
+
+    bool ClearBoneOverride(string boneName);
+
+    void ClearBoneOverrides();
 }

@@ -34,15 +34,40 @@ public sealed class MachineMod : IAllumeriaMod
                 [
                     new LumaAnimationStateSpec
                     {
+                        Name = "startup",
+                        Animation = "startup",
+                        Loop = false,
+                        OnCompleteState = "working",
+                        OnCompleteTransitionSeconds = 0.15f
+                    },
+                    new LumaAnimationStateSpec
+                    {
                         Name = "working",
                         Animation = "working",
-                        Loop = true
+                        Loop = true,
+                        Events =
+                        [
+                            new LumaAnimationEventSpec
+                            {
+                                Name = "crusher-cycle",
+                                TimeSeconds = 1.0f,
+                                Payload = "mechanical-impact"
+                            }
+                        ]
                     },
                     new LumaAnimationStateSpec
                     {
                         Name = "idle",
                         Animation = "working",
-                        AutoPlay = false
+                        AutoPlay = false,
+                        BoneOverrides =
+                        [
+                            new LumaBoneOverrideSpec
+                            {
+                                Bone = "turbine_l",
+                                RotationDegrees = new LumaVector3(0f, 0f, 0f)
+                            }
+                        ]
                     }
                 ],
                 Transitions =
@@ -51,13 +76,15 @@ public sealed class MachineMod : IAllumeriaMod
                     {
                         Trigger = "pause",
                         From = "working",
-                        To = "idle"
+                        To = "idle",
+                        TransitionSeconds = 0.2f
                     },
                     new LumaAnimationTransitionSpec
                     {
                         Trigger = "work",
                         From = "idle",
-                        To = "working"
+                        To = "working",
+                        TransitionSeconds = 0.2f
                     }
                 ]
             }
@@ -76,8 +103,16 @@ Core contracts:
 - `ILumaModelService.LoadAnimated(...)` creates an adapter-backed model.
 - `LumaAnimatedModelSpec.AnimationGraph` declares named animation states and
   trigger transitions.
+- `LumaAnimationTransitionSpec.TransitionSeconds` blends the current bone pose
+  into the destination state over a short duration.
+- `LumaAnimationStateSpec.OnCompleteState` can move from a non-looping state
+  into another declared state when the current animation ends.
 - `ILumaAnimatedModel.Animation.SetState(...)` switches to a declared state.
 - `ILumaAnimatedModel.Animation.Trigger(...)` follows a declared transition.
+- `ILumaAnimatedModel.Animation.DrainEvents()` returns keyframe events emitted
+  since the last drain.
+- `ILumaAnimatedModel.Animation.SetBoneOverride(...)` can apply runtime bone
+  overrides by public bone name.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
 - `ILumaAnimatedModel.PauseAnimation()` pauses the current animation.
 - `ILumaAnimatedModel.RestartAnimation()` restarts the current animation.
@@ -138,3 +173,57 @@ Allumeria rendering types.
 Each placed animated block gets its own animation controller. The Allumeria
 adapter shares parsed model assets and textures between instances, but keeps
 animator state per block entity.
+
+Mods can address an animated block instance by position through the public
+content service:
+
+```csharp
+content.TriggerAnimationAt(x, y, z, "work");
+
+ILumaAnimationController? animation = content.GetAnimationControllerAt(x, y, z);
+foreach (LumaAnimationEvent evt in animation?.DrainEvents() ?? [])
+{
+    context.Logger.Info($"Animation event: {evt.State}/{evt.Name}");
+}
+
+animation?.SetBoneOverride("turbine_l", new LumaBoneOverrideSpec
+{
+    Bone = "turbine_l",
+    RotationDegrees = new LumaVector3(0f, 90f, 0f)
+});
+```
+
+## Animation Graph Patterns
+
+Machine pattern:
+
+```text
+idle --work--> startup --complete--> working --pause--> idle
+working emits keyframe events such as crush-impact, smoke-puff, consume-input.
+```
+
+Use this for blocks with processing state, energy, inventories, or timed work.
+Keep one-shot states such as `startup` and `shutdown` non-looping and point them
+at the next state with `OnCompleteState`.
+
+Entity pattern:
+
+```text
+idle --move--> walk
+walk --stop--> idle
+idle/walk --hurt--> hurt --complete--> idle
+```
+
+Use short `TransitionSeconds` values for locomotion and non-looping hit/reaction
+states. Drain events from the controller when animation frames should drive
+gameplay effects.
+
+Decorative pattern:
+
+```text
+spinning
+```
+
+Use one looping state with no transitions for simple ambient blocks. Add
+declarative `BoneOverrides` when a model needs a fixed pose per state but no
+custom code.

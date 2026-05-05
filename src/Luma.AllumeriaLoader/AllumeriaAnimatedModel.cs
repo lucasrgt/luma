@@ -21,6 +21,7 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
     private readonly List<EntityModel> entityModels = [];
     private readonly List<ModelBounds> modelBounds = [];
     private readonly List<Vector3> lightSampleOffsets = [];
+    private readonly Dictionary<string, LumaBoneOverrideSpec> boneOverrides = new(StringComparer.Ordinal);
     private bool loadAttempted;
     private int debugUpdateLogCount;
     private int debugLightLogCount;
@@ -29,6 +30,12 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
     private bool loopAnimation;
     private bool animationAutoPlay = true;
     private float animationStepSeconds;
+    private IReadOnlyList<EntityModelBonePose[]>? transitionStartPoses;
+    private float transitionSeconds;
+    private float transitionElapsedSeconds;
+    private readonly List<LumaAnimationEvent> pendingAnimationEvents = [];
+    private float lastAnimationEventTime;
+    private bool hasAnimationEventCursor;
 
     public AllumeriaAnimatedModel(AllumeriaAnimatedModelOptions options)
     {
@@ -43,11 +50,23 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
     public void Update()
     {
-        foreach (EntityModel entityModel in entityModels)
+        for (int i = 0; i < entityModels.Count; i++)
         {
+            EntityModel entityModel = entityModels[i];
             entityModel.UpdateBones(Matrix4.Identity);
+            bool poseChanged = ApplyTransitionBlend(i, entityModel);
+            poseChanged |= ApplyBoneOverrides(entityModel);
+            if (poseChanged)
+            {
+                UpdateBoneMatrices(entityModel);
+            }
+
             LogDebugAnimationState(entityModel);
         }
+
+        EmitAnimationEvents();
+        AdvanceTransition();
+        ApplyAutomaticCompletionTransition();
     }
 
     public void RenderBlock(Vector3 position)
@@ -73,9 +92,9 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
             return;
         }
 
-        foreach (EntityModel entityModel in entityModels)
+        for (int i = 0; i < entityModels.Count; i++)
         {
-            RenderModel(entityModel, position, yaw, light);
+            RenderModel(i, entityModels[i], position, yaw, light);
         }
     }
 
@@ -91,11 +110,12 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
             Vector3 lightPosition = position + GetLightSampleOffset(i);
             Vector4 light = SampleLight(lightPosition);
             ModelLightSampleSet lightSamples = BuildModelLightSamples(i, position, yaw);
-            RenderModel(entityModels[i], position, yaw, light, lightSamples);
+            RenderModel(i, entityModels[i], position, yaw, light, lightSamples);
         }
     }
 
-    private static void RenderModel(
+    private void RenderModel(
+        int modelIndex,
         EntityModel entityModel,
         Vector3 position,
         float yaw,
@@ -103,6 +123,12 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
         ModelLightSampleSet? lightSamples = null)
     {
         entityModel.UpdateBonesLerped(Matrix4.Identity);
+        bool poseChanged = ApplyTransitionBlend(modelIndex, entityModel);
+        poseChanged |= ApplyBoneOverrides(entityModel);
+        if (poseChanged)
+        {
+            UpdateBoneMatrices(entityModel);
+        }
 
         Shader? lumaShader = LumaModelShader.Get();
         if (lumaShader is null)
@@ -126,6 +152,8 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
     public bool SetAnimation(string animationName, bool loop = true, float stepSeconds = 1f / 60f)
     {
+        ClearTransition();
+        ResetAnimationEventCursor();
         currentStateName = null;
         currentAnimationName = animationName;
         loopAnimation = loop;
@@ -162,6 +190,8 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
     {
         animationAutoPlay = true;
         animationStepSeconds = stepSeconds;
+        ResetAnimationEventCursor();
+        boneOverrides.Clear();
         foreach (EntityModel entityModel in entityModels)
         {
             entityModel.animator.Restart(animationStepSeconds);
@@ -183,10 +213,10 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
         animationStepSeconds = options.AnimationStepSeconds;
     }
 
-    private bool SetAnimationState(string stateName)
+    private bool SetAnimationState(string stateName, float transitionSeconds = 0f)
     {
         LumaAnimationStateSpec? state = options.AnimationGraph?.FindState(stateName);
-        return state is not null && ApplyAnimationState(state);
+        return state is not null && ApplyAnimationState(state, transitionSeconds);
     }
 
     private bool TriggerAnimation(string triggerName)
@@ -209,7 +239,7 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
                 continue;
             }
 
-            return SetAnimationState(transition.To);
+            return SetAnimationState(transition.To, transition.TransitionSeconds);
         }
 
         return false;
@@ -221,20 +251,162 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
             from.Equals(currentStateName, StringComparison.Ordinal);
     }
 
-    private bool ApplyAnimationState(LumaAnimationStateSpec state)
+    private bool ApplyAnimationState(LumaAnimationStateSpec state, float transitionSeconds = 0f)
     {
+        IReadOnlyList<EntityModelBonePose[]>? startPoses = transitionSeconds > 0f && entityModels.Count > 0
+            ? CaptureCurrentBonePoses()
+            : null;
+
         currentStateName = state.Name;
         currentAnimationName = state.Animation;
         loopAnimation = state.Loop;
         animationAutoPlay = state.AutoPlay;
         animationStepSeconds = state.StepSeconds;
+        ResetAnimationEventCursor();
+        ApplyDeclaredBoneOverrides(state);
 
         if (entityModels.Count == 0)
         {
             return true;
         }
 
-        return ApplyAnimationToLoadedModels();
+        bool applied = ApplyAnimationToLoadedModels();
+        if (applied && startPoses is not null)
+        {
+            BeginTransition(startPoses, transitionSeconds);
+        }
+        else
+        {
+            ClearTransition();
+        }
+
+        return applied;
+    }
+
+    private void ApplyDeclaredBoneOverrides(LumaAnimationStateSpec state)
+    {
+        boneOverrides.Clear();
+        foreach (LumaBoneOverrideSpec boneOverride in state.BoneOverrides)
+        {
+            if (!string.IsNullOrWhiteSpace(boneOverride.Bone))
+            {
+                boneOverrides[boneOverride.Bone] = boneOverride;
+            }
+        }
+    }
+
+    private bool SetBoneOverride(string boneName, LumaBoneOverrideSpec boneOverride)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(boneName);
+        ArgumentNullException.ThrowIfNull(boneOverride);
+
+        boneOverrides[boneName] = new LumaBoneOverrideSpec
+        {
+            Bone = boneName,
+            RotationDegrees = boneOverride.RotationDegrees,
+            PositionOffset = boneOverride.PositionOffset
+        };
+        return true;
+    }
+
+    private bool ClearBoneOverride(string boneName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(boneName);
+        return boneOverrides.Remove(boneName);
+    }
+
+    private void ClearBoneOverrides()
+    {
+        boneOverrides.Clear();
+    }
+
+    private IReadOnlyList<LumaAnimationEvent> DrainAnimationEvents()
+    {
+        if (pendingAnimationEvents.Count == 0)
+        {
+            return [];
+        }
+
+        LumaAnimationEvent[] events = [.. pendingAnimationEvents];
+        pendingAnimationEvents.Clear();
+        return events;
+    }
+
+    private void ResetAnimationEventCursor()
+    {
+        lastAnimationEventTime = 0f;
+        hasAnimationEventCursor = true;
+        pendingAnimationEvents.Clear();
+    }
+
+    private void EmitAnimationEvents()
+    {
+        if (!hasAnimationEventCursor ||
+            string.IsNullOrWhiteSpace(currentStateName) ||
+            entityModels.Count == 0)
+        {
+            return;
+        }
+
+        LumaAnimationStateSpec? state = options.AnimationGraph?.FindState(currentStateName);
+        if (state is null || state.Events.Count == 0)
+        {
+            return;
+        }
+
+        EntityModelAnimator animator = entityModels[0].animator;
+        float currentTime = animator.time;
+        foreach (LumaAnimationEventSpec eventSpec in state.Events)
+        {
+            if (DidCrossEventTime(lastAnimationEventTime, currentTime, eventSpec.TimeSeconds, animator.loop))
+            {
+                pendingAnimationEvents.Add(new LumaAnimationEvent(
+                    state.Name,
+                    eventSpec.Name,
+                    eventSpec.TimeSeconds,
+                    eventSpec.Payload));
+            }
+        }
+
+        lastAnimationEventTime = currentTime;
+    }
+
+    private static bool DidCrossEventTime(float previousTime, float currentTime, float eventTime, bool loop)
+    {
+        if (eventTime < 0f)
+        {
+            return false;
+        }
+
+        if (loop && currentTime < previousTime)
+        {
+            return eventTime > previousTime || eventTime <= currentTime;
+        }
+
+        return eventTime > previousTime && eventTime <= currentTime;
+    }
+
+    private void ApplyAutomaticCompletionTransition()
+    {
+        if (transitionStartPoses is not null ||
+            string.IsNullOrWhiteSpace(currentStateName) ||
+            entityModels.Count == 0)
+        {
+            return;
+        }
+
+        LumaAnimationStateSpec? state = options.AnimationGraph?.FindState(currentStateName);
+        if (state is null || string.IsNullOrWhiteSpace(state.OnCompleteState))
+        {
+            return;
+        }
+
+        if (!entityModels.All(entityModel => entityModel.animator.ended))
+        {
+            return;
+        }
+
+        _ = SetAnimationState(state.OnCompleteState, state.OnCompleteTransitionSeconds);
     }
 
     private bool EnsureLoaded()
@@ -326,6 +498,124 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
         }
 
         return animationStarted;
+    }
+
+    private IReadOnlyList<EntityModelBonePose[]> CaptureCurrentBonePoses()
+    {
+        var result = new List<EntityModelBonePose[]>(entityModels.Count);
+        foreach (EntityModel entityModel in entityModels)
+        {
+            var poses = new EntityModelBonePose[entityModel.bonesFlat.Length];
+            for (int i = 0; i < entityModel.bonesFlat.Length; i++)
+            {
+                EntityModelBone bone = entityModel.bonesFlat[i];
+                poses[i] = new EntityModelBonePose(bone.position, bone.rotation);
+            }
+
+            result.Add(poses);
+        }
+
+        return result;
+    }
+
+    private void BeginTransition(IReadOnlyList<EntityModelBonePose[]> startPoses, float seconds)
+    {
+        transitionStartPoses = startPoses;
+        transitionSeconds = MathF.Max(0f, seconds);
+        transitionElapsedSeconds = 0f;
+    }
+
+    private void ClearTransition()
+    {
+        transitionStartPoses = null;
+        transitionSeconds = 0f;
+        transitionElapsedSeconds = 0f;
+    }
+
+    private void AdvanceTransition()
+    {
+        if (transitionStartPoses is null)
+        {
+            return;
+        }
+
+        transitionElapsedSeconds += 1f / 60f;
+        if (transitionElapsedSeconds >= transitionSeconds)
+        {
+            ClearTransition();
+        }
+    }
+
+    private bool ApplyTransitionBlend(int modelIndex, EntityModel entityModel)
+    {
+        if (modelIndex < 0 || transitionStartPoses is null || transitionSeconds <= 0f)
+        {
+            return false;
+        }
+
+        if (modelIndex >= transitionStartPoses.Count)
+        {
+            return false;
+        }
+
+        EntityModelBonePose[] startPoses = transitionStartPoses[modelIndex];
+        float amount = Math.Clamp(transitionElapsedSeconds / transitionSeconds, 0f, 1f);
+        for (int i = 0; i < entityModel.bonesFlat.Length && i < startPoses.Length; i++)
+        {
+            EntityModelBone bone = entityModel.bonesFlat[i];
+            EntityModelBonePose start = startPoses[i];
+            bone.position = Vector3.Lerp(start.Position, bone.position, amount);
+            bone.rotation = Vector3.Lerp(start.Rotation, bone.rotation, amount);
+        }
+
+        return true;
+    }
+
+    private bool ApplyBoneOverrides(EntityModel entityModel)
+    {
+        if (boneOverrides.Count == 0)
+        {
+            return false;
+        }
+
+        bool applied = false;
+        foreach (LumaBoneOverrideSpec boneOverride in boneOverrides.Values)
+        {
+            EntityModelBone? bone = entityModel.FindBone(boneOverride.Bone);
+            if (bone is null)
+            {
+                continue;
+            }
+
+            if (boneOverride.PositionOffset is LumaVector3 position)
+            {
+                bone.position = ToVector3(position);
+                applied = true;
+            }
+
+            if (boneOverride.RotationDegrees is LumaVector3 rotation)
+            {
+                bone.rotation = ToVector3(rotation);
+                applied = true;
+            }
+        }
+
+        return applied;
+    }
+
+    private static void UpdateBoneMatrices(EntityModel entityModel)
+    {
+        Matrix4 initialMatrix = Matrix4.Identity;
+        if (entityModel.externalBaseBone is not null)
+        {
+            initialMatrix = Matrix4.CreateTranslation(entityModel.externalBaseBone.modelBone.origin) *
+                entityModel.externalBaseBone.matrix;
+        }
+
+        foreach (EntityModelBone bone in entityModel.boneTree)
+        {
+            bone.UpdateMatrix(initialMatrix);
+        }
     }
 
     private AllumeriaAnimatedModelSharedAssets GetOrLoadSharedAssets(AllumeriaModelAssetSet assets)
@@ -825,6 +1115,26 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
         {
             model.RestartAnimation(stepSeconds ?? model.animationStepSeconds);
         }
+
+        public IReadOnlyList<LumaAnimationEvent> DrainEvents()
+        {
+            return model.DrainAnimationEvents();
+        }
+
+        public bool SetBoneOverride(string boneName, LumaBoneOverrideSpec boneOverride)
+        {
+            return model.SetBoneOverride(boneName, boneOverride);
+        }
+
+        public bool ClearBoneOverride(string boneName)
+        {
+            return model.ClearBoneOverride(boneName);
+        }
+
+        public void ClearBoneOverrides()
+        {
+            model.ClearBoneOverrides();
+        }
     }
 }
 
@@ -853,6 +1163,7 @@ internal sealed class AllumeriaAnimatedModelOptions
 
     public static AllumeriaAnimatedModelOptions FromSpec(LumaAnimatedModelSpec spec)
     {
+        ValidateSpec(spec);
         return new AllumeriaAnimatedModelOptions
         {
             Name = spec.Name,
@@ -865,6 +1176,144 @@ internal sealed class AllumeriaAnimatedModelOptions
             AnimationStepSeconds = spec.AnimationStepSeconds,
             AnimationGraph = spec.AnimationGraph
         };
+    }
+
+    private static void ValidateSpec(LumaAnimatedModelSpec spec)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(spec.Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(spec.AssetRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(spec.ModelPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(spec.TexturePath);
+
+        if (spec.AnimationStepSeconds <= 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(spec), "AnimationStepSeconds must be greater than zero.");
+        }
+
+        if (spec.AnimationGraph is null)
+        {
+            return;
+        }
+
+        ValidateGraph(spec.Name, spec.AnimationGraph);
+    }
+
+    private static void ValidateGraph(string modelName, LumaAnimationGraphSpec graph)
+    {
+        var states = new HashSet<string>(StringComparer.Ordinal);
+        foreach (LumaAnimationStateSpec state in graph.States)
+        {
+            if (string.IsNullOrWhiteSpace(state.Name))
+            {
+                throw new ArgumentException($"Animation graph for {modelName} contains a state with no name.");
+            }
+
+            if (!states.Add(state.Name))
+            {
+                throw new ArgumentException($"Animation graph for {modelName} contains duplicate state '{state.Name}'.");
+            }
+
+            if (state.StepSeconds <= 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(graph), $"Animation state '{state.Name}' in {modelName} must have StepSeconds greater than zero.");
+            }
+
+            if (state.OnCompleteTransitionSeconds < 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(graph), $"Animation state '{state.Name}' in {modelName} cannot have a negative OnCompleteTransitionSeconds.");
+            }
+
+            ValidateStateEvents(modelName, state);
+            ValidateStateBoneOverrides(modelName, state);
+        }
+
+        if (!string.IsNullOrWhiteSpace(graph.InitialState) && !states.Contains(graph.InitialState))
+        {
+            throw new ArgumentException($"Animation graph for {modelName} references missing InitialState '{graph.InitialState}'.");
+        }
+
+        foreach (LumaAnimationStateSpec state in graph.States)
+        {
+            if (!string.IsNullOrWhiteSpace(state.OnCompleteState) && !states.Contains(state.OnCompleteState))
+            {
+                throw new ArgumentException($"Animation state '{state.Name}' in {modelName} references missing OnCompleteState '{state.OnCompleteState}'.");
+            }
+        }
+
+        foreach (LumaAnimationTransitionSpec transition in graph.Transitions)
+        {
+            ValidateTransition(modelName, states, transition);
+        }
+    }
+
+    private static void ValidateStateEvents(string modelName, LumaAnimationStateSpec state)
+    {
+        foreach (LumaAnimationEventSpec animationEvent in state.Events)
+        {
+            if (string.IsNullOrWhiteSpace(animationEvent.Name))
+            {
+                throw new ArgumentException($"Animation state '{state.Name}' in {modelName} contains an event with no name.");
+            }
+
+            if (animationEvent.TimeSeconds < 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(state), $"Animation event '{animationEvent.Name}' in {modelName} cannot have a negative TimeSeconds.");
+            }
+        }
+    }
+
+    private static void ValidateStateBoneOverrides(string modelName, LumaAnimationStateSpec state)
+    {
+        foreach (LumaBoneOverrideSpec boneOverride in state.BoneOverrides)
+        {
+            ValidateBoneOverride(modelName, boneOverride);
+        }
+    }
+
+    private static void ValidateBoneOverride(string modelName, LumaBoneOverrideSpec boneOverride)
+    {
+        if (string.IsNullOrWhiteSpace(boneOverride.Bone))
+        {
+            throw new ArgumentException($"Animation graph for {modelName} contains a bone override with no bone name.");
+        }
+
+        if (boneOverride.RotationDegrees is null && boneOverride.PositionOffset is null)
+        {
+            throw new ArgumentException($"Bone override '{boneOverride.Bone}' in {modelName} must set RotationDegrees, PositionOffset, or both.");
+        }
+    }
+
+    private static void ValidateTransition(string modelName, HashSet<string> states, LumaAnimationTransitionSpec transition)
+    {
+        if (string.IsNullOrWhiteSpace(transition.Trigger))
+        {
+            throw new ArgumentException($"Animation graph for {modelName} contains a transition with no trigger.");
+        }
+
+        if (string.IsNullOrWhiteSpace(transition.From))
+        {
+            throw new ArgumentException($"Animation transition '{transition.Trigger}' in {modelName} has no From state.");
+        }
+
+        if (string.IsNullOrWhiteSpace(transition.To))
+        {
+            throw new ArgumentException($"Animation transition '{transition.Trigger}' in {modelName} has no To state.");
+        }
+
+        if (!transition.From.Equals("*", StringComparison.Ordinal) && !states.Contains(transition.From))
+        {
+            throw new ArgumentException($"Animation transition '{transition.Trigger}' in {modelName} references missing From state '{transition.From}'.");
+        }
+
+        if (!states.Contains(transition.To))
+        {
+            throw new ArgumentException($"Animation transition '{transition.Trigger}' in {modelName} references missing To state '{transition.To}'.");
+        }
+
+        if (transition.TransitionSeconds < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(transition), $"Animation transition '{transition.Trigger}' in {modelName} cannot have a negative TransitionSeconds.");
+        }
     }
 
     private static AllumeriaLightSampleSettings LoadLightSampleSettings()
@@ -924,6 +1373,8 @@ internal sealed class AllumeriaAnimatedModelOptions
 }
 
 internal sealed record AllumeriaModelAssetSet(string TexturePath, IReadOnlyList<string> ModelPaths);
+
+internal readonly record struct EntityModelBonePose(Vector3 Position, Vector3 Rotation);
 
 internal sealed record AllumeriaAnimatedModelSharedAssets(
     IReadOnlyList<JsonDocument> Documents,

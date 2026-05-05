@@ -1,4 +1,5 @@
 using Luma.Abstractions.Content;
+using Luma.Abstractions.Models;
 using Luma.Runtime;
 
 Console.WriteLine("Luma DevHost starting.");
@@ -25,5 +26,15 @@ internal sealed class DevContentService : ILumaContentService
     public void RegisterAnimatedBlock(LumaAnimatedBlockSpec spec)
     {
         Console.WriteLine($"[DevHost] Registered animated block: {spec.BlockId} -> {spec.Model.ModelPath}");
+    }
+
+    public ILumaAnimationController? GetAnimationControllerAt(int x, int y, int z)
+    {
+        return null;
+    }
+
+    public bool TriggerAnimationAt(int x, int y, int z, string triggerName)
+    {
+        return false;
     }
 }

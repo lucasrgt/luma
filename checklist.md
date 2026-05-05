@@ -146,14 +146,9 @@ Definition of done:
 
 - O sample e pequeno o bastante para servir de template para novos mods.
 
-## Proximo alvo
-
-Iniciar o milestone de Animation Runtime: controllers, transicoes, triggerables,
-eventos de keyframe e manipulacao publica de bones.
-
 ## 8. Animation Runtime declarativo
 
-Status: [~] em andamento
+Status: [x] feito
 
 - [x] Adicionar `AnimationGraph` declarativo ao `LumaAnimatedModelSpec`.
 - [x] Declarar estados de animacao nomeados.
@@ -163,13 +158,23 @@ Status: [~] em andamento
 - [x] Dar estado de animacao proprio para cada block entity Luma.
 - [x] Compartilhar assets pesados entre instancias para nao reparsar tudo por
   bloco.
-- [ ] Adicionar blend/transition duration.
-- [ ] Adicionar eventos de keyframe.
-- [ ] Adicionar manipulacao publica de bones.
-- [ ] Persistir estado de animacao por block entity.
+- [x] 8.1 Adicionar `TransitionSeconds` declarativo e blend basico de pose.
+- [x] 8.2 Adicionar transicoes automaticas ao fim da animacao.
+- [x] 8.3 Adicionar eventos de keyframe declarativos.
+- [x] 8.4 Expor API limpa para acionar controller por block entity.
+- [x] 8.5 Adicionar manipulacao publica/declarativa de bones.
+- [x] 8.6 Persistir estado de animacao por block entity.
+- [x] 8.7 Adicionar validadores/erros claros para graphs invalidos.
+- [x] 8.8 Documentar padroes de graph para maquinas, entidades e decorativos.
 
 Definition of done:
 
 - Mods conseguem descrever comportamento de animacao por dados, e o runtime
   consegue executar esse grafo por instancia sem depender de tipos nativos do
   Allumeria.
+
+## Proximo alvo
+
+Iniciar o milestone de interacao/gameplay: APIs declarativas para receitas mais
+ricas, energia/inventario de maquinas e efeitos acionados por eventos de
+animacao.

@@ -47,6 +47,38 @@ public sealed class LumaAnimationStateSpec
     public bool AutoPlay { get; init; } = true;
 
     public float StepSeconds { get; init; } = 1f / 60f;
+
+    public IReadOnlyList<LumaAnimationEventSpec> Events { get; init; } = [];
+
+    public IReadOnlyList<LumaBoneOverrideSpec> BoneOverrides { get; init; } = [];
+
+    public string? OnCompleteState { get; init; }
+
+    public float OnCompleteTransitionSeconds { get; init; }
+}
+
+public sealed class LumaAnimationEventSpec
+{
+    public required string Name { get; init; }
+
+    public float TimeSeconds { get; init; }
+
+    public string? Payload { get; init; }
+}
+
+public sealed record LumaAnimationEvent(
+    string State,
+    string Name,
+    float TimeSeconds,
+    string? Payload);
+
+public sealed class LumaBoneOverrideSpec
+{
+    public required string Bone { get; init; }
+
+    public LumaVector3? RotationDegrees { get; init; }
+
+    public LumaVector3? PositionOffset { get; init; }
 }
 
 public sealed class LumaAnimationTransitionSpec
@@ -56,4 +88,6 @@ public sealed class LumaAnimationTransitionSpec
     public required string From { get; init; }
 
     public required string To { get; init; }
+
+    public float TransitionSeconds { get; init; }
 }

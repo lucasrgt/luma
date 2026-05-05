@@ -42,7 +42,16 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                         {
                             Name = "working",
                             Animation = "working",
-                            Loop = true
+                            Loop = true,
+                            Events =
+                            [
+                                new LumaAnimationEventSpec
+                                {
+                                    Name = "crusher-cycle",
+                                    TimeSeconds = 1.0f,
+                                    Payload = "mechanical-impact"
+                                }
+                            ]
                         },
                         new LumaAnimationStateSpec
                         {
@@ -58,13 +67,15 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                         {
                             Trigger = "pause",
                             From = "working",
-                            To = "idle"
+                            To = "idle",
+                            TransitionSeconds = 0.2f
                         },
                         new LumaAnimationTransitionSpec
                         {
                             Trigger = "work",
                             From = "idle",
-                            To = "working"
+                            To = "working",
+                            TransitionSeconds = 0.2f
                         }
                     ]
                 }

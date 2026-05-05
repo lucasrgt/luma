@@ -2,6 +2,8 @@ using Allumeria;
 using Allumeria.Blocks.BlockEntities;
 using Allumeria.Blocks.Blocks;
 using Allumeria.ChunkManagement;
+using Allumeria.DataManagement;
+using Allumeria.DataManagement.Saving;
 using Allumeria.Items;
 using Allumeria.Items.Crafting;
 using Luma.Abstractions.Content;
@@ -42,6 +44,24 @@ internal sealed class AllumeriaContentService : ILumaContentService
         }
 
         Logger.Info($"Queued animated block {spec.BlockId} ({spec.DisplayName}).");
+    }
+
+    public ILumaAnimationController? GetAnimationControllerAt(int x, int y, int z)
+    {
+        World? world = Allumeria.Game.gameState?.worldManager?.world;
+        if (world?.chunkManager.GetBlockEntityAt(x, y, z, out BlockEntity entity) != true ||
+            entity is not PublicAnimatedModelBlockEntity animatedEntity)
+        {
+            return null;
+        }
+
+        return animatedEntity.GetAnimationController();
+    }
+
+    public bool TriggerAnimationAt(int x, int y, int z, string triggerName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(triggerName);
+        return GetAnimationControllerAt(x, y, z)?.Trigger(triggerName) == true;
     }
 
     public async Task InstallAsync()
@@ -209,7 +229,10 @@ internal sealed class PublicAnimatedModelBlock : AnimatedModelBlock<PublicAnimat
 
 internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
 {
+    private const string AnimationStateTag = "lumaAnimationState";
+
     private AllumeriaAnimatedModel? model;
+    private string? savedAnimationState;
 
     protected override ILumaAnimatedModel Model => throw new NotSupportedException();
 
@@ -229,8 +252,40 @@ internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
         }
 
         this.model = AllumeriaModelRegistry.RegisterAnimatedInstance(block.ModelSpec);
+        if (!string.IsNullOrWhiteSpace(savedAnimationState))
+        {
+            _ = this.model.Animation.SetState(savedAnimationState);
+            savedAnimationState = null;
+        }
+
         model = this.model;
         return true;
+    }
+
+    public ILumaAnimationController? GetAnimationController()
+    {
+        return TryGetModel(out ILumaAnimatedModel model)
+            ? model.Animation
+            : null;
+    }
+
+    public override void WriteBytes(ListTag tag)
+    {
+        base.WriteBytes(tag);
+        string? currentState = model?.Animation.CurrentState ?? savedAnimationState;
+        if (!string.IsNullOrWhiteSpace(currentState))
+        {
+            tag.AddTag(new StringTag(AnimationStateTag, currentState));
+        }
+    }
+
+    public override void ReadBytes(ListTag tag, PaletteConstructor constructedPalette)
+    {
+        base.ReadBytes(tag, constructedPalette);
+        if (tag.FindTag(AnimationStateTag, out DataTag stateTag))
+        {
+            savedAnimationState = stateTag.GetValue() as string;
+        }
     }
 
     public override void OnDelete(World world)

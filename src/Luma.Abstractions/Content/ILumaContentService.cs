@@ -5,6 +5,10 @@ namespace Luma.Abstractions.Content;
 public interface ILumaContentService
 {
     void RegisterAnimatedBlock(LumaAnimatedBlockSpec spec);
+
+    ILumaAnimationController? GetAnimationControllerAt(int x, int y, int z);
+
+    bool TriggerAnimationAt(int x, int y, int z, string triggerName);
 }
 
 public sealed class LumaAnimatedBlockSpec
