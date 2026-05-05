@@ -30,6 +30,8 @@ internal sealed class DevContentService : ILumaContentService
         {
             Console.WriteLine($"[DevHost] Recipe: {FormatRecipe(recipe, spec.BlockId)}");
         }
+
+        PrintAnimationEffects(spec);
     }
 
     public ILumaAnimationController? GetAnimationControllerAt(int x, int y, int z)
@@ -53,5 +55,19 @@ internal sealed class DevContentService : ILumaContentService
         }));
 
         return $"{ingredients} -> {recipe.OutputCount}x {blockId} @ {recipe.Station}";
+    }
+
+    private static void PrintAnimationEffects(LumaAnimatedBlockSpec spec)
+    {
+        foreach (LumaAnimationStateSpec state in spec.Model.AnimationGraph?.States ?? [])
+        {
+            foreach (LumaAnimationEventSpec animationEvent in state.Events)
+            {
+                foreach (LumaAnimationEffectSpec effect in animationEvent.Effects)
+                {
+                    Console.WriteLine($"[DevHost] Event effect: {state.Name}/{animationEvent.Name} -> {effect.Kind}:{effect.Id}");
+                }
+            }
+        }
     }
 }

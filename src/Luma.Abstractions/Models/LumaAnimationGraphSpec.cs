@@ -64,13 +64,35 @@ public sealed class LumaAnimationEventSpec
     public float TimeSeconds { get; init; }
 
     public string? Payload { get; init; }
+
+    public IReadOnlyList<LumaAnimationEffectSpec> Effects { get; init; } = [];
+}
+
+public sealed class LumaAnimationEffectSpec
+{
+    public required string Kind { get; init; }
+
+    public string? Id { get; init; }
+
+    public string? Payload { get; init; }
+
+    public LumaVector3? Offset { get; init; }
+
+    public float Strength { get; init; } = 1f;
 }
 
 public sealed record LumaAnimationEvent(
     string State,
     string Name,
     float TimeSeconds,
-    string? Payload);
+    string? Payload,
+    IReadOnlyList<LumaAnimationEffectSpec> Effects)
+{
+    public LumaAnimationEvent(string state, string name, float timeSeconds, string? payload)
+        : this(state, name, timeSeconds, payload, [])
+    {
+    }
+}
 
 public sealed class LumaBoneOverrideSpec
 {

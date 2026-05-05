@@ -51,7 +51,17 @@ public sealed class MachineMod : IAllumeriaMod
                             {
                                 Name = "crusher-cycle",
                                 TimeSeconds = 1.0f,
-                                Payload = "mechanical-impact"
+                                Payload = "mechanical-impact",
+                                Effects =
+                                [
+                                    new LumaAnimationEffectSpec
+                                    {
+                                        Kind = "particle",
+                                        Id = "smoke",
+                                        Offset = new LumaVector3(0.5f, 1.3f, 0.5f),
+                                        Strength = 0.65f
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -111,6 +121,8 @@ Core contracts:
 - `ILumaAnimatedModel.Animation.Trigger(...)` follows a declared transition.
 - `ILumaAnimatedModel.Animation.DrainEvents()` returns keyframe events emitted
   since the last drain.
+- `LumaAnimationEventSpec.Effects` attaches declarative effect requests to a
+  keyframe event without requiring mods to reference native game effect types.
 - `ILumaAnimatedModel.Animation.SetBoneOverride(...)` can apply runtime bone
   overrides by public bone name.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
@@ -212,6 +224,10 @@ ILumaAnimationController? animation = content.GetAnimationControllerAt(x, y, z);
 foreach (LumaAnimationEvent evt in animation?.DrainEvents() ?? [])
 {
     context.Logger.Info($"Animation event: {evt.State}/{evt.Name}");
+    foreach (LumaAnimationEffectSpec effect in evt.Effects)
+    {
+        context.Logger.Info($"Effect request: {effect.Kind}/{effect.Id}");
+    }
 }
 
 animation?.SetBoneOverride("turbine_l", new LumaBoneOverrideSpec
@@ -232,7 +248,9 @@ working emits keyframe events such as crush-impact, smoke-puff, consume-input.
 
 Use this for blocks with processing state, energy, inventories, or timed work.
 Keep one-shot states such as `startup` and `shutdown` non-looping and point them
-at the next state with `OnCompleteState`.
+at the next state with `OnCompleteState`. Attach declarative effects such as
+`particle`, `sound`, `log`, or future gameplay actions to keyframe events so
+the event timing stays in the animation data.
 
 Entity pattern:
 

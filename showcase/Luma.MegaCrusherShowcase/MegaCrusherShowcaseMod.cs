@@ -49,7 +49,24 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                                 {
                                     Name = "crusher-cycle",
                                     TimeSeconds = 1.0f,
-                                    Payload = "mechanical-impact"
+                                    Payload = "mechanical-impact",
+                                    Effects =
+                                    [
+                                        new LumaAnimationEffectSpec
+                                        {
+                                            Kind = "log",
+                                            Id = "crusher-impact",
+                                            Payload = "Mega Crusher cycle impact",
+                                            Strength = 1f
+                                        },
+                                        new LumaAnimationEffectSpec
+                                        {
+                                            Kind = "particle",
+                                            Id = "smoke",
+                                            Offset = new LumaVector3(0.5f, 1.3f, 0.5f),
+                                            Strength = 0.65f
+                                        }
+                                    ]
                                 }
                             ]
                         },

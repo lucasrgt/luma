@@ -364,7 +364,8 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
                     state.Name,
                     eventSpec.Name,
                     eventSpec.TimeSeconds,
-                    eventSpec.Payload));
+                    eventSpec.Payload,
+                    eventSpec.Effects));
             }
         }
 
@@ -1259,6 +1260,28 @@ internal sealed class AllumeriaAnimatedModelOptions
             {
                 throw new ArgumentOutOfRangeException(nameof(state), $"Animation event '{animationEvent.Name}' in {modelName} cannot have a negative TimeSeconds.");
             }
+
+            foreach (LumaAnimationEffectSpec effect in animationEvent.Effects)
+            {
+                ValidateAnimationEffect(modelName, state, animationEvent, effect);
+            }
+        }
+    }
+
+    private static void ValidateAnimationEffect(
+        string modelName,
+        LumaAnimationStateSpec state,
+        LumaAnimationEventSpec animationEvent,
+        LumaAnimationEffectSpec effect)
+    {
+        if (string.IsNullOrWhiteSpace(effect.Kind))
+        {
+            throw new ArgumentException($"Animation event '{animationEvent.Name}' in state '{state.Name}' for {modelName} contains an effect with no Kind.");
+        }
+
+        if (effect.Strength < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(state), $"Animation effect '{effect.Kind}' on event '{animationEvent.Name}' in {modelName} cannot have a negative Strength.");
         }
     }
 
