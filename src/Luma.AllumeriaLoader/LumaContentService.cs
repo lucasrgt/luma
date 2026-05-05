@@ -31,7 +31,6 @@ internal sealed class AllumeriaContentService : ILumaContentService
             throw new ArgumentOutOfRangeException(nameof(spec), "RecipeOutputCount must be at least 1.");
         }
 
-        ILumaAnimatedModel model = AllumeriaModelRegistry.RegisterAnimated(spec.Model);
         lock (gate)
         {
             if (animatedBlocks.Any(block => block.Spec.BlockId.Equals(spec.BlockId, StringComparison.Ordinal)))
@@ -39,7 +38,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
                 throw new InvalidOperationException($"Animated block already registered: {spec.BlockId}");
             }
 
-            animatedBlocks.Add(new RegisteredAnimatedBlock(spec, model));
+            animatedBlocks.Add(new RegisteredAnimatedBlock(spec));
         }
 
         Logger.Info($"Queued animated block {spec.BlockId} ({spec.DisplayName}).");
@@ -65,19 +64,6 @@ internal sealed class AllumeriaContentService : ILumaContentService
         }
 
         Logger.Info("Luma content install timed out");
-    }
-
-    public static bool TryGetAnimatedModelAt(int x, int y, int z, out ILumaAnimatedModel model)
-    {
-        model = null!;
-        World? world = Allumeria.Game.gameState?.worldManager?.world;
-        if (world?.chunkManager.GetBlockIfExists(x, y, z) is not PublicAnimatedModelBlock block)
-        {
-            return false;
-        }
-
-        model = block.Model;
-        return true;
     }
 
     private bool TryInstall(int attempt)
@@ -110,7 +96,7 @@ internal sealed class AllumeriaContentService : ILumaContentService
         {
             if (entry.Block is null)
             {
-                entry.Block = new PublicAnimatedModelBlock(entry.Spec, entry.Model);
+                entry.Block = new PublicAnimatedModelBlock(entry.Spec);
                 Logger.Info($"Registered Luma animated block id={entry.Block.intID}, item={entry.Block.item.itemID}: {entry.Spec.BlockId}");
             }
         }
@@ -200,11 +186,9 @@ internal sealed class AllumeriaContentService : ILumaContentService
         Logger.Info($"Grew item registry to {newCapacity}");
     }
 
-    private sealed class RegisteredAnimatedBlock(LumaAnimatedBlockSpec spec, ILumaAnimatedModel model)
+    private sealed class RegisteredAnimatedBlock(LumaAnimatedBlockSpec spec)
     {
         public LumaAnimatedBlockSpec Spec { get; } = spec;
-
-        public ILumaAnimatedModel Model { get; } = model;
 
         public PublicAnimatedModelBlock? Block { get; set; }
 
@@ -214,21 +198,49 @@ internal sealed class AllumeriaContentService : ILumaContentService
 
 internal sealed class PublicAnimatedModelBlock : AnimatedModelBlock<PublicAnimatedModelBlockEntity>
 {
-    public PublicAnimatedModelBlock(LumaAnimatedBlockSpec spec, ILumaAnimatedModel model)
+    public PublicAnimatedModelBlock(LumaAnimatedBlockSpec spec)
         : base(spec.BlockId, spec.DisplayName, spec.Description, spec.ItemSprite)
     {
-        Model = model;
+        ModelSpec = spec.Model;
     }
 
-    public ILumaAnimatedModel Model { get; }
+    public LumaAnimatedModelSpec ModelSpec { get; }
 }
 
 internal sealed class PublicAnimatedModelBlockEntity : AnimatedModelBlockEntity
 {
+    private AllumeriaAnimatedModel? model;
+
     protected override ILumaAnimatedModel Model => throw new NotSupportedException();
 
     protected override bool TryGetModel(out ILumaAnimatedModel model)
     {
-        return AllumeriaContentService.TryGetAnimatedModelAt(posX, posY, posZ, out model);
+        if (this.model is not null)
+        {
+            model = this.model;
+            return true;
+        }
+
+        model = null!;
+        World? world = Allumeria.Game.gameState?.worldManager?.world;
+        if (world?.chunkManager.GetBlockIfExists(posX, posY, posZ) is not PublicAnimatedModelBlock block)
+        {
+            return false;
+        }
+
+        this.model = AllumeriaModelRegistry.RegisterAnimatedInstance(block.ModelSpec);
+        model = this.model;
+        return true;
+    }
+
+    public override void OnDelete(World world)
+    {
+        if (model is not null)
+        {
+            AllumeriaModelRegistry.UnregisterAnimated(model);
+            model = null;
+        }
+
+        base.OnDelete(world);
     }
 }

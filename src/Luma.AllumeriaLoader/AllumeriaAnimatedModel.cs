@@ -13,30 +13,33 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
     private const int MaxShaderLightSamples = 16;
     private const float LightSampleSideOutset = 0.35f;
     private const float LightSampleVerticalOutset = 0.05f;
+    private static readonly object SharedAssetGate = new();
+    private static readonly Dictionary<string, AllumeriaAnimatedModelSharedAssets> SharedAssets = [];
 
     private readonly AllumeriaAnimatedModelOptions options;
-    private readonly List<JsonDocument> modelDocuments = [];
     private readonly List<BBModel> bbModels = [];
     private readonly List<EntityModel> entityModels = [];
     private readonly List<ModelBounds> modelBounds = [];
     private readonly List<Vector3> lightSampleOffsets = [];
-    private Texture? texture;
     private bool loadAttempted;
     private int debugUpdateLogCount;
     private int debugLightLogCount;
+    private string? currentStateName;
     private string? currentAnimationName;
     private bool loopAnimation;
+    private bool animationAutoPlay = true;
     private float animationStepSeconds;
 
     public AllumeriaAnimatedModel(AllumeriaAnimatedModelOptions options)
     {
         this.options = options;
-        currentAnimationName = options.AnimationName;
-        loopAnimation = options.LoopAnimation;
-        animationStepSeconds = options.AnimationStepSeconds;
+        Animation = new AllumeriaAnimationController(this);
+        ApplyInitialAnimation();
     }
 
     public string Name => options.Name;
+
+    public ILumaAnimationController Animation { get; }
 
     public void Update()
     {
@@ -123,8 +126,10 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
     public bool SetAnimation(string animationName, bool loop = true, float stepSeconds = 1f / 60f)
     {
+        currentStateName = null;
         currentAnimationName = animationName;
         loopAnimation = loop;
+        animationAutoPlay = true;
         animationStepSeconds = stepSeconds;
 
         if (entityModels.Count == 0)
@@ -137,19 +142,99 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
     public void PauseAnimation()
     {
+        animationAutoPlay = false;
         foreach (EntityModel entityModel in entityModels)
         {
             entityModel.animator.Pause();
         }
     }
 
+    public void ResumeAnimation()
+    {
+        animationAutoPlay = true;
+        foreach (EntityModel entityModel in entityModels)
+        {
+            entityModel.animator.Play(animationStepSeconds);
+        }
+    }
+
     public void RestartAnimation(float stepSeconds = 1f / 60f)
     {
+        animationAutoPlay = true;
         animationStepSeconds = stepSeconds;
         foreach (EntityModel entityModel in entityModels)
         {
             entityModel.animator.Restart(animationStepSeconds);
         }
+    }
+
+    private void ApplyInitialAnimation()
+    {
+        LumaAnimationStateSpec? initialState = options.AnimationGraph?.GetInitialState();
+        if (initialState is not null)
+        {
+            ApplyAnimationState(initialState);
+            return;
+        }
+
+        currentAnimationName = options.AnimationName;
+        loopAnimation = options.LoopAnimation;
+        animationAutoPlay = true;
+        animationStepSeconds = options.AnimationStepSeconds;
+    }
+
+    private bool SetAnimationState(string stateName)
+    {
+        LumaAnimationStateSpec? state = options.AnimationGraph?.FindState(stateName);
+        return state is not null && ApplyAnimationState(state);
+    }
+
+    private bool TriggerAnimation(string triggerName)
+    {
+        LumaAnimationGraphSpec? graph = options.AnimationGraph;
+        if (graph is null)
+        {
+            return false;
+        }
+
+        foreach (LumaAnimationTransitionSpec transition in graph.Transitions)
+        {
+            if (!transition.Trigger.Equals(triggerName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!MatchesTransitionSource(transition.From))
+            {
+                continue;
+            }
+
+            return SetAnimationState(transition.To);
+        }
+
+        return false;
+    }
+
+    private bool MatchesTransitionSource(string from)
+    {
+        return from.Equals("*", StringComparison.Ordinal) ||
+            from.Equals(currentStateName, StringComparison.Ordinal);
+    }
+
+    private bool ApplyAnimationState(LumaAnimationStateSpec state)
+    {
+        currentStateName = state.Name;
+        currentAnimationName = state.Animation;
+        loopAnimation = state.Loop;
+        animationAutoPlay = state.AutoPlay;
+        animationStepSeconds = state.StepSeconds;
+
+        if (entityModels.Count == 0)
+        {
+            return true;
+        }
+
+        return ApplyAnimationToLoadedModels();
     }
 
     private bool EnsureLoaded()
@@ -175,27 +260,15 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
                 return false;
             }
 
-            texture = new Texture(
-                assets.TexturePath,
-                flip: options.TextureFlip,
-                clamp: options.TextureClamp,
-                mipmaps: options.TextureMipmaps,
-                keepImage: options.TextureKeepImage,
-                nearest: options.TextureNearest,
-                data: null!,
-                fixedSize: options.TextureFixedSize);
+            AllumeriaAnimatedModelSharedAssets sharedAssets = GetOrLoadSharedAssets(assets);
 
-            foreach (string modelPath in assets.ModelPaths)
+            for (int i = 0; i < sharedAssets.Models.Count; i++)
             {
-                JsonDocument modelDocument = JsonDocument.Parse(File.ReadAllText(modelPath));
-                var bbModel = new BBModel(modelDocument.RootElement);
-                bbModel.mesh = bbModel.ConvertToMesh();
-
-                var entityModel = new EntityModel(bbModel, texture);
-                modelDocuments.Add(modelDocument);
+                BBModel bbModel = sharedAssets.Models[i];
+                var entityModel = new EntityModel(bbModel, sharedAssets.Texture);
                 bbModels.Add(bbModel);
                 entityModels.Add(entityModel);
-                modelBounds.Add(CalculateModelBounds(bbModel));
+                modelBounds.Add(sharedAssets.Bounds[i]);
             }
 
             RebuildLightSampleOffsets();
@@ -240,11 +313,78 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
             entityModel.animator.SetAnimation(currentAnimationName);
             entityModel.animator.loop = loopAnimation;
-            entityModel.animator.Play(animationStepSeconds);
+            if (animationAutoPlay)
+            {
+                entityModel.animator.Play(animationStepSeconds);
+            }
+            else
+            {
+                entityModel.animator.Pause();
+            }
+
             animationStarted = true;
         }
 
         return animationStarted;
+    }
+
+    private AllumeriaAnimatedModelSharedAssets GetOrLoadSharedAssets(AllumeriaModelAssetSet assets)
+    {
+        string cacheKey = BuildSharedAssetCacheKey(assets);
+        lock (SharedAssetGate)
+        {
+            if (SharedAssets.TryGetValue(cacheKey, out AllumeriaAnimatedModelSharedAssets? cached))
+            {
+                return cached;
+            }
+
+            AllumeriaAnimatedModelSharedAssets loaded = LoadSharedAssets(assets);
+            SharedAssets.Add(cacheKey, loaded);
+            return loaded;
+        }
+    }
+
+    private AllumeriaAnimatedModelSharedAssets LoadSharedAssets(AllumeriaModelAssetSet assets)
+    {
+        var texture = new Texture(
+            assets.TexturePath,
+            flip: options.TextureFlip,
+            clamp: options.TextureClamp,
+            mipmaps: options.TextureMipmaps,
+            keepImage: options.TextureKeepImage,
+            nearest: options.TextureNearest,
+            data: null!,
+            fixedSize: options.TextureFixedSize);
+
+        var modelDocuments = new List<JsonDocument>();
+        var models = new List<BBModel>();
+        var bounds = new List<ModelBounds>();
+        foreach (string modelPath in assets.ModelPaths)
+        {
+            JsonDocument modelDocument = JsonDocument.Parse(File.ReadAllText(modelPath));
+            var bbModel = new BBModel(modelDocument.RootElement);
+            bbModel.mesh = bbModel.ConvertToMesh();
+
+            modelDocuments.Add(modelDocument);
+            models.Add(bbModel);
+            bounds.Add(CalculateModelBounds(bbModel));
+        }
+
+        return new AllumeriaAnimatedModelSharedAssets(modelDocuments, models, bounds, texture);
+    }
+
+    private string BuildSharedAssetCacheKey(AllumeriaModelAssetSet assets)
+    {
+        return string.Join(
+            "|",
+            options.TextureFlip,
+            options.TextureClamp,
+            options.TextureMipmaps,
+            options.TextureKeepImage,
+            options.TextureNearest,
+            options.TextureFixedSize,
+            assets.TexturePath,
+            string.Join(";", assets.ModelPaths));
     }
 
     private void LogDebugAnimationState(EntityModel entityModel)
@@ -647,12 +787,44 @@ internal sealed class AllumeriaAnimatedModel : ILumaAnimatedModel
 
     private void ClearLoadedState()
     {
-        modelDocuments.Clear();
         bbModels.Clear();
         entityModels.Clear();
         modelBounds.Clear();
         lightSampleOffsets.Clear();
-        texture = null;
+    }
+
+    private sealed class AllumeriaAnimationController(AllumeriaAnimatedModel model) : ILumaAnimationController
+    {
+        public string? CurrentState => model.currentStateName;
+
+        public string? CurrentAnimation => model.currentAnimationName;
+
+        public bool SetState(string stateName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(stateName);
+            return model.SetAnimationState(stateName);
+        }
+
+        public bool Trigger(string triggerName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(triggerName);
+            return model.TriggerAnimation(triggerName);
+        }
+
+        public void Pause()
+        {
+            model.PauseAnimation();
+        }
+
+        public void Resume()
+        {
+            model.ResumeAnimation();
+        }
+
+        public void Restart(float? stepSeconds = null)
+        {
+            model.RestartAnimation(stepSeconds ?? model.animationStepSeconds);
+        }
     }
 }
 
@@ -666,6 +838,7 @@ internal sealed class AllumeriaAnimatedModelOptions
     public string? AnimationName { get; init; }
     public bool LoopAnimation { get; init; } = true;
     public float AnimationStepSeconds { get; init; } = 1f / 60f;
+    public LumaAnimationGraphSpec? AnimationGraph { get; init; }
     public Func<Vector3, Vector4>? LightSampler { get; init; }
     public AllumeriaLightSampleSettings LightSampleSettings { get; init; } = LoadLightSampleSettings();
     public int DebugLightSampleFrames { get; init; } = LoadDebugLightSampleFrames();
@@ -689,7 +862,8 @@ internal sealed class AllumeriaAnimatedModelOptions
             ChunkManifestFileName = spec.ChunkManifestPath,
             AnimationName = spec.InitialAnimation,
             LoopAnimation = spec.LoopInitialAnimation,
-            AnimationStepSeconds = spec.AnimationStepSeconds
+            AnimationStepSeconds = spec.AnimationStepSeconds,
+            AnimationGraph = spec.AnimationGraph
         };
     }
 
@@ -750,6 +924,12 @@ internal sealed class AllumeriaAnimatedModelOptions
 }
 
 internal sealed record AllumeriaModelAssetSet(string TexturePath, IReadOnlyList<string> ModelPaths);
+
+internal sealed record AllumeriaAnimatedModelSharedAssets(
+    IReadOnlyList<JsonDocument> Documents,
+    IReadOnlyList<BBModel> Models,
+    IReadOnlyList<ModelBounds> Bounds,
+    Texture Texture);
 
 internal sealed record ModelLightSampleSet(Vector3[] Positions, Vector4[] Values)
 {

@@ -34,7 +34,19 @@ public sealed class SampleMod : IAllumeriaMod
                 AssetRoot = assetRoot,
                 ModelPath = "sample_rotor.bbmodel.json",
                 TexturePath = "sample_rotor.png",
-                InitialAnimation = "spin"
+                AnimationGraph = new LumaAnimationGraphSpec
+                {
+                    InitialState = "spinning",
+                    States =
+                    [
+                        new LumaAnimationStateSpec
+                        {
+                            Name = "spinning",
+                            Animation = "spin",
+                            Loop = true
+                        }
+                    ]
+                }
             },
             AddWoodRecipe = true,
             RecipeOutputCount = 1

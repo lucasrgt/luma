@@ -14,3 +14,5 @@ Install it with:
 
 The showcase registers `Mega Crusher` and `Luma Rotor` through
 `ILumaContentService`, the same public content API used by the clean sample.
+It uses declarative `AnimationGraph` specs so the large model can define
+states/triggers without custom loader classes.

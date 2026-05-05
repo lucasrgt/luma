@@ -150,3 +150,26 @@ Definition of done:
 
 Iniciar o milestone de Animation Runtime: controllers, transicoes, triggerables,
 eventos de keyframe e manipulacao publica de bones.
+
+## 8. Animation Runtime declarativo
+
+Status: [~] em andamento
+
+- [x] Adicionar `AnimationGraph` declarativo ao `LumaAnimatedModelSpec`.
+- [x] Declarar estados de animacao nomeados.
+- [x] Declarar transicoes por trigger.
+- [x] Expor controller publico em `ILumaAnimatedModel.Animation`.
+- [x] Manter compatibilidade com `InitialAnimation`.
+- [x] Dar estado de animacao proprio para cada block entity Luma.
+- [x] Compartilhar assets pesados entre instancias para nao reparsar tudo por
+  bloco.
+- [ ] Adicionar blend/transition duration.
+- [ ] Adicionar eventos de keyframe.
+- [ ] Adicionar manipulacao publica de bones.
+- [ ] Persistir estado de animacao por block entity.
+
+Definition of done:
+
+- Mods conseguem descrever comportamento de animacao por dados, e o runtime
+  consegue executar esse grafo por instancia sem depender de tipos nativos do
+  Allumeria.

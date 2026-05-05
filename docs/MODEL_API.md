@@ -1,8 +1,8 @@
 # Luma Model API
 
-The first runtime model API lives in `Luma.Abstractions.Models`. It is deliberately
-small: mods ask for an `ILumaModelService`, load an animated model, choose an
-animation, and render it at a block position.
+The runtime model API lives in `Luma.Abstractions.Models`. Mods ask for an
+`ILumaModelService`, load an animated model from a declarative spec, and render
+it at a block position.
 
 On Allumeria, `Loader.dll` registers the native adapter as `ILumaModelService`
 before mod `Init` runs.
@@ -27,7 +27,40 @@ public sealed class MachineMod : IAllumeriaMod
             ModelPath = "mega_crusher.bbmodel.json",
             TexturePath = "retronism_megacrusher.png",
             ChunkManifestPath = "mega_crusher.chunks.json",
-            InitialAnimation = "working"
+            AnimationGraph = new LumaAnimationGraphSpec
+            {
+                InitialState = "working",
+                States =
+                [
+                    new LumaAnimationStateSpec
+                    {
+                        Name = "working",
+                        Animation = "working",
+                        Loop = true
+                    },
+                    new LumaAnimationStateSpec
+                    {
+                        Name = "idle",
+                        Animation = "working",
+                        AutoPlay = false
+                    }
+                ],
+                Transitions =
+                [
+                    new LumaAnimationTransitionSpec
+                    {
+                        Trigger = "pause",
+                        From = "working",
+                        To = "idle"
+                    },
+                    new LumaAnimationTransitionSpec
+                    {
+                        Trigger = "work",
+                        From = "idle",
+                        To = "working"
+                    }
+                ]
+            }
         });
     }
 
@@ -41,10 +74,18 @@ public sealed class MachineMod : IAllumeriaMod
 Core contracts:
 
 - `ILumaModelService.LoadAnimated(...)` creates an adapter-backed model.
+- `LumaAnimatedModelSpec.AnimationGraph` declares named animation states and
+  trigger transitions.
+- `ILumaAnimatedModel.Animation.SetState(...)` switches to a declared state.
+- `ILumaAnimatedModel.Animation.Trigger(...)` follows a declared transition.
 - `ILumaAnimatedModel.SetAnimation(...)` changes and starts an animation.
 - `ILumaAnimatedModel.PauseAnimation()` pauses the current animation.
 - `ILumaAnimatedModel.RestartAnimation()` restarts the current animation.
 - `ILumaAnimatedModel.RenderBlock(...)` renders at a block-space position.
+
+`InitialAnimation`, `LoopInitialAnimation`, and `AnimationStepSeconds` still work
+as a compact compatibility path. Prefer `AnimationGraph` for new mods because it
+keeps the mod's animation behavior declarative and portable.
 
 Adapter details such as Allumeria `BBModel`, `EntityModel`, OpenTK matrices,
 texture instances, and light values stay outside the public mod API.
@@ -73,7 +114,18 @@ content.RegisterAnimatedBlock(new LumaAnimatedBlockSpec
         AssetRoot = Path.Combine(context.ModsDirectory, "my_mod", "assets", "models"),
         ModelPath = "sample_rotor.bbmodel.json",
         TexturePath = "sample_rotor.png",
-        InitialAnimation = "spin"
+        AnimationGraph = new LumaAnimationGraphSpec
+        {
+            InitialState = "spinning",
+            States =
+            [
+                new LumaAnimationStateSpec
+                {
+                    Name = "spinning",
+                    Animation = "spin"
+                }
+            ]
+        }
     }
 });
 ```
@@ -82,3 +134,7 @@ On Allumeria, `ILumaContentService` queues registration until native block,
 item, block-entity, and crafting registries are ready. The block entity renders
 through `ILumaAnimatedModel`, so the mod still does not reference native
 Allumeria rendering types.
+
+Each placed animated block gets its own animation controller. The Allumeria
+adapter shares parsed model assets and textures between instances, but keeps
+animator state per block entity.

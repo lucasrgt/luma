@@ -49,6 +49,8 @@ To install the clean sample mod:
 
 The sample registers a craftable `Sample Rotor` block through
 `ILumaContentService`. Its recipe is `1x any planks -> 1x Sample Rotor`.
+Its animation is declared with `LumaAnimatedModelSpec.AnimationGraph`, the same
+state/transition style used by the larger showcase.
 
 To install the heavier Mega Crusher showcase as well:
 

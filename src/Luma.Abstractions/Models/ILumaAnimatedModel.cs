@@ -4,6 +4,8 @@ public interface ILumaAnimatedModel
 {
     string Name { get; }
 
+    ILumaAnimationController Animation { get; }
+
     void Update();
 
     bool SetAnimation(string animationName, bool loop = true, float stepSeconds = 1f / 60f);
@@ -15,4 +17,21 @@ public interface ILumaAnimatedModel
     void RenderBlock(LumaVector3 position);
 
     void Render(LumaModelRenderRequest request);
+}
+
+public interface ILumaAnimationController
+{
+    string? CurrentState { get; }
+
+    string? CurrentAnimation { get; }
+
+    bool SetState(string stateName);
+
+    bool Trigger(string triggerName);
+
+    void Pause();
+
+    void Resume();
+
+    void Restart(float? stepSeconds = null);
 }

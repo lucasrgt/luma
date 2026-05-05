@@ -33,7 +33,41 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 ModelPath = "mega_crusher.bbmodel.json",
                 ChunkManifestPath = "mega_crusher.chunks.json",
                 TexturePath = "retronism_megacrusher.png",
-                InitialAnimation = "working"
+                AnimationGraph = new LumaAnimationGraphSpec
+                {
+                    InitialState = "working",
+                    States =
+                    [
+                        new LumaAnimationStateSpec
+                        {
+                            Name = "working",
+                            Animation = "working",
+                            Loop = true
+                        },
+                        new LumaAnimationStateSpec
+                        {
+                            Name = "idle",
+                            Animation = "working",
+                            Loop = true,
+                            AutoPlay = false
+                        }
+                    ],
+                    Transitions =
+                    [
+                        new LumaAnimationTransitionSpec
+                        {
+                            Trigger = "pause",
+                            From = "working",
+                            To = "idle"
+                        },
+                        new LumaAnimationTransitionSpec
+                        {
+                            Trigger = "work",
+                            From = "idle",
+                            To = "working"
+                        }
+                    ]
+                }
             },
             AddWoodRecipe = true
         });
@@ -49,7 +83,19 @@ public sealed class MegaCrusherShowcaseMod : IAllumeriaMod
                 AssetRoot = assetRoot,
                 ModelPath = "test_rotor.bbmodel.json",
                 TexturePath = "retronism_megacrusher.png",
-                InitialAnimation = "spin"
+                AnimationGraph = new LumaAnimationGraphSpec
+                {
+                    InitialState = "spinning",
+                    States =
+                    [
+                        new LumaAnimationStateSpec
+                        {
+                            Name = "spinning",
+                            Animation = "spin",
+                            Loop = true
+                        }
+                    ]
+                }
             },
             AddWoodRecipe = true
         });
